@@ -1,16 +1,16 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Entity Framework Core.
+using Microsoft.Extensions.Configuration; // Thư viện để đọc file appsettings.json.
+using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Entity Framework Core.
-using Microsoft.Extensions.Configuration; // Thư viện để đọc file appsettings.json.
-using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
 using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
 using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
-using TicketBooking.Infrastructure.Data; // Namespace chứa ApplicationDbContext.
+using TicketBooking.Infrastructure.Data;
+using TicketBooking.Infrastructure.Services; // Namespace chứa ApplicationDbContext.
 
 namespace TicketBooking.Infrastructure
 {
@@ -45,6 +45,10 @@ namespace TicketBooking.Infrastructure
 
             // Thêm dòng này vào method AddInfrastructure:
             services.AddTransient<DataSeeder>(); // Register DataSeeder as Transient.
+
+            // Add inside AddInfrastructure method:
+            services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+            services.AddTransient<IEmailService, SmtpEmailService>();
 
             // Trả về services để có thể viết code nối tiếp (Fluent API).
             return services;

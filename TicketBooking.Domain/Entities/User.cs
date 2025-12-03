@@ -19,5 +19,9 @@ namespace TicketBooking.Domain.Entities
         public UserRole Role { get; set; } = UserRole.Customer;
         public ICollection<Order> Orders { get; set; } = new List<Order>();
 
+        public string? VerificationToken { get; set; } // Stores the 6-digit OTP.
+        public DateTime? VerificationTokenExpires { get; set; } // Stores expiration time.
+        public bool EmailConfirmed { get; set; } = false; // Flag to check if verified.
+
     }
 }

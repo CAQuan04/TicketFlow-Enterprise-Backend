@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc; // Needed for Controller attributes.
+using TicketBooking.Application.Features.Auth.Commands.VerifyEmail;
 using TicketBooking.Application.Features.Auth.Queries.Login; // Needed for LoginQuery.
 using TicketBooking.Application.Features.Users.Commands.CreateUser; // Needed for CreateUserCommand (Register).
 
@@ -30,6 +31,13 @@ namespace TicketBooking.API.Controllers
 
             // Return HTTP 200 OK with the new User ID.
             return Ok(userId);
+        }
+
+        [HttpPost("Verify")]
+        public async Task<IActionResult> Verify(VerifyEmailCommand command)
+        {
+            var result = await Mediator.Send(command);
+            return Ok(result);
         }
     }
 }
