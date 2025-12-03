@@ -1,10 +1,11 @@
-﻿using TicketBooking.API.Infrastructure; // Import namespace chứa GlobalExceptionHandler
-using TicketBooking.Application;
-using TicketBooking.Infrastructure;
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text;
+using TicketBooking.API.Infrastructure; // Import namespace chứa GlobalExceptionHandler
+using TicketBooking.Application;
+using TicketBooking.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +72,16 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// 1. THÊM DỊCH VỤ CORS (Cho phép mọi nguồn truy cập - Dùng cho Dev)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder => builder
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
 var app = builder.Build();
 
 // --- 2. MIDDLEWARE PIPELINE (Thứ tự cực kỳ quan trọng) ---
@@ -87,10 +98,45 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+
+// 2. KÍCH HOẠT CORS (Phải đặt TRƯỚC UseAuthentication và UseAuthorization)
+app.UseCors("AllowAll");
+
 // AuthN trước AuthZ
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+
+// Create a scope to resolve scoped services like DbContext and DataSeeder.
+// Create a scope to resolve scoped services.
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+
+    try
+    {
+        // 1. Get the DbContext to access Database functions.
+        var context = services.GetRequiredService<TicketBooking.Infrastructure.Data.ApplicationDbContext>();
+
+        // 2. AUTOMATICALLY APPLY MIGRATIONS
+        // This command checks if there are any migrations in the code that haven't been applied to the DB.
+        // If the DB doesn't exist (like your fresh Docker case), it creates the DB and all Tables.
+        // Equivalent to running "Update-Database" manually.
+        await context.Database.MigrateAsync();
+
+        // 3. SEED DATA
+        // Now that the DB and Tables exist, we can safely insert seed data.
+        var seeder = services.GetRequiredService<TicketBooking.Infrastructure.Data.DataSeeder>();
+        await seeder.SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        // Log any errors during startup (crucial for debugging Docker issues).
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while initializing the database.");
+    }
+}
 
 app.Run();

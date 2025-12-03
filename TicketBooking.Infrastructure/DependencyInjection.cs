@@ -43,6 +43,9 @@ namespace TicketBooking.Infrastructure
             // Đăng ký dịch vụ tạo Token (JWT) dạng Singleton.
             services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 
+            // Thêm dòng này vào method AddInfrastructure:
+            services.AddTransient<DataSeeder>(); // Register DataSeeder as Transient.
+
             // Trả về services để có thể viết code nối tiếp (Fluent API).
             return services;
         }
