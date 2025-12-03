@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
 using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
+using TicketBooking.Infrastructure.Authentication.Social;
 using TicketBooking.Infrastructure.Data;
 using TicketBooking.Infrastructure.Services; // Namespace chứa ApplicationDbContext.
 
@@ -49,6 +50,13 @@ namespace TicketBooking.Infrastructure
             // Add inside AddInfrastructure method:
             services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
             services.AddTransient<IEmailService, SmtpEmailService>();
+
+            // Configure Google Settings.
+            services.Configure<GoogleSettings>(configuration.GetSection(GoogleSettings.SectionName));
+
+            // Register GoogleAuthService as the implementation of ISocialAuthService.
+            // If adding more providers later, we can use Keyed Services (available in .NET 8).
+            services.AddTransient<ISocialAuthService, GoogleAuthService>();
 
             // Trả về services để có thể viết code nối tiếp (Fluent API).
             return services;
