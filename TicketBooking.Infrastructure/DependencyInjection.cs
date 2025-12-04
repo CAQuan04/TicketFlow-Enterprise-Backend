@@ -1,11 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Entity Framework Core.
 using Microsoft.Extensions.Configuration; // Thư viện để đọc file appsettings.json.
 using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
 using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
