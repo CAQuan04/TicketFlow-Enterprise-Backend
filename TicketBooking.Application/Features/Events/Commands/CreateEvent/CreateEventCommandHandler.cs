@@ -1,51 +1,95 @@
-﻿using MediatR; // Import MediatR.
-using TicketBooking.Application.Common.Exceptions; // Import custom exceptions.
-using TicketBooking.Application.Common.Interfaces; // Import interfaces.
-using TicketBooking.Domain.Entities; // Import entities.
+﻿using MediatR;
+using TicketBooking.Application.Common.Exceptions; // Sử dụng Custom Exception.
+using TicketBooking.Application.Common.Interfaces;
+using TicketBooking.Domain.Entities;
+using TicketBooking.Domain.Enums;
+// Alias để tránh nhầm lẫn với System.ComponentModel.DataAnnotations.ValidationException
+using ValidationException = TicketBooking.Application.Common.Exceptions.ValidationException;
 
 namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
 {
-    // Handler for CreateEventCommand.
     public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Guid>
     {
-        private readonly IApplicationDbContext _context; // Database access.
+        private readonly IApplicationDbContext _context;
 
         public CreateEventCommandHandler(IApplicationDbContext context)
         {
-            _context = context; // Inject context.
+            _context = context;
         }
 
         public async Task<Guid> Handle(CreateEventCommand request, CancellationToken cancellationToken)
         {
-            // 1. VERIFY VENUE EXISTENCE (Business Logic).
-            // Attempt to find the Venue in the database using the provided ID.
+            // 1. BUSINESS RULE: VENUE VALIDATION
+            // Kiểm tra xem địa điểm tổ chức có tồn tại không.
             var venue = await _context.Venues.FindAsync(new object[] { request.VenueId }, cancellationToken);
 
-            // If the venue does not exist, we cannot link the event.
             if (venue == null)
             {
-                // Throw our custom NotFoundException.
-                // The GlobalExceptionHandler in the API layer will catch this and return a 404 Not Found response.
+                // Nếu không tìm thấy, ném lỗi 404 Not Found.
                 throw new NotFoundException(nameof(Venue), request.VenueId);
             }
 
-            // 2. Create the Event Entity.
-            var entity = new Event
+            // 2. BUSINESS RULE: CAPACITY CHECK (Logic quan trọng)
+            // Tính tổng số lượng vé muốn phát hành.
+            int totalTicketsRequest = request.TicketTypes.Sum(t => t.Quantity);
+
+            // So sánh với sức chứa tối đa của địa điểm.
+            if (totalTicketsRequest > venue.Capacity)
             {
-                Id = Guid.NewGuid(), // Generate ID.
-                VenueId = request.VenueId, // Link to the existing Venue.
-                Name = request.Name, // Map Name.
-                Description = request.Description, // Map Description.
-                EventDate = request.EventDate, // Map Date.
-                CreatedDate = DateTime.UtcNow // Set timestamp.
+                // CHÍNH THỨC SỬ DỤNG VALIDATION EXCEPTION (HTTP 400)
+                // Tạo dictionary lỗi chuẩn.
+                var errors = new Dictionary<string, string[]>
+                {
+                    { "Capacity", new[] { $"Total tickets ({totalTicketsRequest}) exceed venue capacity ({venue.Capacity})." } }
+                };
+
+                // Ném ngoại lệ tùy chỉnh (đã được hỗ trợ bởi Constructor thứ 3 sếp vừa thêm).
+                throw new ValidationException(errors);
+            }
+
+            // 3. MAPPING ENTITY (EVENT)
+            // Tạo đối tượng Event.
+            var eventEntity = new Event
+            {
+                Id = Guid.NewGuid(),
+                VenueId = request.VenueId,
+                Name = request.Name,
+                Description = request.Description,
+                StartDateTime = request.StartDateTime,
+                EndDateTime = request.EndDateTime,
+                CoverImageUrl = request.CoverImageUrl,
+                Status = EventStatus.Draft, // Mặc định là bản nháp.
+                CreatedDate = DateTime.UtcNow
             };
 
-            // 3. Persistence.
-            _context.Events.Add(entity); // Add to DbContext.
-            await _context.SaveChangesAsync(cancellationToken); // Commit transaction.
+            // 4. MAPPING ENTITY (TICKET TYPES - CHILDREN)
+            // Duyệt qua danh sách DTO và chuyển đổi sang Entity.
+            foreach (var ticketDto in request.TicketTypes)
+            {
+                var ticketType = new TicketType
+                {
+                    Id = Guid.NewGuid(),
+                    // EventId sẽ được EF Core tự động gán.
+                    Name = ticketDto.Name,
+                    Price = ticketDto.Price,
+                    Quantity = ticketDto.Quantity,
+                    AvailableQuantity = ticketDto.Quantity, // Vé còn lại = Tổng vé ban đầu.
+                    CreatedDate = DateTime.UtcNow
+                };
 
-            // Return the new Event ID.
-            return entity.Id;
+                // Thêm vào danh sách con của Event.
+                eventEntity.TicketTypes.Add(ticketType);
+            }
+
+            // 5. PERSISTENCE (TRANSACTIONAL INTEGRITY)
+            // EF Core tự động INSERT Event và TicketTypes trong 1 Transaction.
+            _context.Events.Add(eventEntity);
+
+            // Lưu xuống Database.
+            await _context.SaveChangesAsync(cancellationToken);
+
+            // 6. RETURN RESULT
+            return eventEntity.Id;
         }
     }
 }

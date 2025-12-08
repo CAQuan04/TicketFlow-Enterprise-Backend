@@ -24,5 +24,13 @@ namespace TicketBooking.Application.Common.Exceptions
                 .GroupBy(e => e.PropertyName, e => e.ErrorMessage) // Group by PropertyName.
                 .ToDictionary(failureGroup => failureGroup.Key, failureGroup => failureGroup.ToArray()); // Convert to Dictionary<string, string[]>.
         }
+
+        // Constructor 3: For Manual Business Logic Errors (e.g., Check Capacity, Check Date logic in Handler)
+        // Cho phép Handler tự tạo danh sách lỗi và ném ra.
+        public ValidationException(IDictionary<string, string[]> errors)
+            : this()
+        {
+            Errors = errors;
+        }
     }
 }

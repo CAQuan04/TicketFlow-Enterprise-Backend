@@ -10,16 +10,27 @@ namespace TicketBooking.API.Controllers
     public class EventsController : ApiControllerBase
     {
         // Endpoint: POST api/Events
-        // Requirement: Organizer OR EventManager can create events.
-        // Logic: Roles string is comma-separated for OR condition.
-        [Authorize(Roles = Roles.Organizer + "," + Roles.EventManager)] // Allow Organizer OR EventManager.
-        [HttpPost] // Define HTTP POST method.
-        public async Task<IActionResult> Create(CreateEventCommand command)
+        // Quyền hạn: Chỉ Organizer mới được phép tạo sự kiện.
+        [Authorize(Roles = Roles.Organizer)]
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateEventCommand command)
         {
-            // Delegate logic to MediatR handler.
+            // Gửi lệnh xử lý qua Mediator.
+            // Toàn bộ logic validate, check database, transaction đều nằm trong Handler.
             var eventId = await Mediator.Send(command);
-            // Return 200 OK with ID.
-            return Ok(eventId);
+
+            // Trả về 201 Created (Chuẩn RESTful hơn là 200 OK khi tạo mới).
+            // Kèm theo ID của tài nguyên vừa tạo.
+            return CreatedAtAction(nameof(GetById), new { id = eventId }, eventId);
+            // Lưu ý: Sếp cần có endpoint GetById để dùng CreatedAtAction, nếu chưa có thì dùng return Ok(eventId);
+        }
+
+        // Placeholder cho GetById để code trên không bị lỗi biên dịch
+        [HttpGet("{id}")]
+        [AllowAnonymous]
+        public IActionResult GetById(Guid id)
+        {
+            return Ok();
         }
 
         // Example: DELETE api/Events/{id}

@@ -1,20 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TicketBooking.Domain.Common;
+﻿using TicketBooking.Domain.Common;
 
 namespace TicketBooking.Domain.Entities
 {
     public class TicketType : BaseEntity
     {
-        public string Name { get; set; } = string.Empty;
-        public decimal Price { get; set; }
-        public int Quantity { get; set; }
-        public int AvailableQuantity { get; set; }
-
         public Guid EventId { get; set; }
         public Event Event { get; set; } = null!;
+
+        public string Name { get; set; } = string.Empty; // Ví dụ: VIP, Regular
+        public decimal Price { get; set; }
+
+        // Tổng số lượng vé phát hành ban đầu.
+        public int Quantity { get; set; }
+
+        // Số lượng vé còn lại có thể bán.
+        // Logic: Khi mới tạo, AvailableQuantity phải bằng Quantity.
+        public int AvailableQuantity { get; set; }
     }
 }

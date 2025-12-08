@@ -1,12 +1,15 @@
-﻿using MediatR; // Import MediatR.
+﻿using MediatR;
 
 namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
 {
-    // Define the command to create an event.
+    // Lệnh yêu cầu tạo sự kiện. Chứa đầy đủ thông tin Header (Event) và Lines (TicketTypes).
     public record CreateEventCommand(
-        Guid VenueId, // The ID of the venue where the event takes place.
-        string Name, // Name of the event.
-        string Description, // Detailed description.
-        DateTime EventDate // When the event happens.
-    ) : IRequest<Guid>;
+        Guid VenueId,
+        string Name,
+        string Description,
+        DateTime StartDateTime,
+        DateTime EndDateTime,
+        string? CoverImageUrl,
+        List<TicketTypeDto> TicketTypes // Danh sách loại vé đi kèm.
+    ) : IRequest<Guid>; // Trả về ID của sự kiện vừa tạo.
 }

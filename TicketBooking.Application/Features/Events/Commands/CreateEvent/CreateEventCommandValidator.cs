@@ -1,23 +1,32 @@
-﻿using FluentValidation; // Import FluentValidation.
+﻿using FluentValidation;
 
 namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
 {
-    // Validator for creating an event.
     public class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
     {
         public CreateEventCommandValidator()
         {
-            // Rule: VenueId must be provided.
-            RuleFor(x => x.VenueId)
-                .NotEmpty().WithMessage("Venue ID is required."); // Ensure GUID is not empty.
+            RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.Description).NotEmpty();
+            RuleFor(x => x.VenueId).NotEmpty();
 
-            // Rule: Name is required.
-            RuleFor(x => x.Name)
-                .NotEmpty().WithMessage("Event name is required."); // Check for empty string.
+            // Logic ngày tháng: Ngày bắt đầu phải ở tương lai.
+            RuleFor(x => x.StartDateTime)
+                .GreaterThan(DateTime.UtcNow).WithMessage("Event start time must be in the future.");
 
-            // Rule: EventDate must be in the future.
-            RuleFor(x => x.EventDate)
-                .GreaterThan(DateTime.UtcNow).WithMessage("Event date must be in the future."); // Business logic rule.
+            // Logic ngày tháng: Ngày kết thúc phải sau ngày bắt đầu.
+            RuleFor(x => x.EndDateTime)
+                .GreaterThan(x => x.StartDateTime).WithMessage("Event end time must be after start time.");
+
+            // Validate danh sách loại vé
+            RuleFor(x => x.TicketTypes).NotEmpty().WithMessage("At least one ticket type is required.");
+
+            // Validate từng phần tử trong danh sách vé
+            RuleForEach(x => x.TicketTypes).ChildRules(tickets => {
+                tickets.RuleFor(t => t.Name).NotEmpty();
+                tickets.RuleFor(t => t.Price).GreaterThanOrEqualTo(0);
+                tickets.RuleFor(t => t.Quantity).GreaterThan(0);
+            });
         }
     }
 }
