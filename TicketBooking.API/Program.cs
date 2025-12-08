@@ -98,6 +98,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// --- ENABLE STATIC FILES (QUAN TRỌNG) ---
+// Middleware này cho phép trình duyệt truy cập ảnh trong thư mục wwwroot.
+// Nếu không có dòng này, link ảnh trả về sẽ không xem được.
+app.UseStaticFiles();
 
 // 2. KÍCH HOẠT CORS (Phải đặt TRƯỚC UseAuthentication và UseAuthorization)
 app.UseCors("AllowAll");

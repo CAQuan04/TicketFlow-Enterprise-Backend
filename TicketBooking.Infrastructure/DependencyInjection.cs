@@ -6,6 +6,7 @@ using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace c
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
 using TicketBooking.Infrastructure.Authentication.Social;
 using TicketBooking.Infrastructure.Data;
+using TicketBooking.Infrastructure.FileStorage;
 using TicketBooking.Infrastructure.Services; // Namespace chứa ApplicationDbContext.
 
 namespace TicketBooking.Infrastructure
@@ -41,7 +42,8 @@ namespace TicketBooking.Infrastructure
 
             // Thêm dòng này vào method AddInfrastructure:
             services.AddTransient<DataSeeder>(); // Register DataSeeder as Transient.
-
+            // Thêm vào AddInfrastructure:
+            services.AddScoped<IStorageService, LocalStorageService>();
             // Add inside AddInfrastructure method:
             services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
             services.AddTransient<IEmailService, SmtpEmailService>();
