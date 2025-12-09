@@ -1,15 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization; // Import Authorization attributes.
 using Microsoft.AspNetCore.Mvc; // Import MVC logic.
 using TicketBooking.API.Controllers; // Import Base Controller.
-using TicketBooking.Application.Features.Events.Commands.ApproveEvent;
-using TicketBooking.Application.Features.Events.Commands.CreateEvent; // Import Command.
+using TicketBooking.Application.Features.Events.Commands.ApproveEvent; // Import Approve Command.
+using TicketBooking.Application.Features.Events.Commands.CreateEvent; // Import Create Command.
+using TicketBooking.Application.Features.Events.Queries.GetEventDetail; // Import Get Detail Query.
 using TicketBooking.Domain.Constants; // Import Roles constants.
 
 namespace TicketBooking.API.Controllers
 {
-    // Controller for Event management endpoints.
+    // Controller quản lý các tính năng liên quan đến Sự Kiện (Events).
     public class EventsController : ApiControllerBase
     {
+        // 1. TẠO SỰ KIỆN (CREATE)
         // Endpoint: POST api/Events
         // Quyền hạn: Chỉ Organizer mới được phép tạo sự kiện.
         [Authorize(Roles = Roles.Organizer)]
@@ -17,58 +19,73 @@ namespace TicketBooking.API.Controllers
         public async Task<IActionResult> Create([FromBody] CreateEventCommand command)
         {
             // Gửi lệnh xử lý qua Mediator.
-            // Toàn bộ logic validate, check database, transaction đều nằm trong Handler.
+            // Logic: Validate -> Check Venue -> Check Capacity -> Save Transaction.
             var eventId = await Mediator.Send(command);
 
-            // Trả về 201 Created (Chuẩn RESTful hơn là 200 OK khi tạo mới).
-            // Kèm theo ID của tài nguyên vừa tạo.
+            // Trả về 201 Created kèm theo Header 'Location' trỏ đến API xem chi tiết.
+            // Điều này giúp Frontend biết ngay link để xem event vừa tạo.
             return CreatedAtAction(nameof(GetById), new { id = eventId }, eventId);
-            // Lưu ý: Sếp cần có endpoint GetById để dùng CreatedAtAction, nếu chưa có thì dùng return Ok(eventId);
         }
 
-        // Placeholder cho GetById để code trên không bị lỗi biên dịch
-        [HttpGet("{id}")]
+        // 2. XEM CHI TIẾT SỰ KIỆN (READ DETAIL) - ĐÃ CẬP NHẬT
+        // Endpoint: GET api/Events/{id}
+        // Quyền hạn: Public (Ai cũng xem được, không cần Token).
         [AllowAnonymous]
-        public IActionResult GetById(Guid id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(Guid id)
         {
-            return Ok();
+            // Tạo Query object chứa ID sự kiện cần lấy.
+            var query = new GetEventDetailQuery(id);
+
+            // Gửi qua Mediator.
+            // Handler sẽ dùng AsNoTracking để tối ưu hiệu năng đọc (High Performance).
+            // Nếu Event là Draft hoặc không tồn tại, Handler sẽ ném lỗi 404.
+            var result = await Mediator.Send(query);
+
+            // Trả về 200 OK cùng dữ liệu chi tiết (Event + Venue + TicketTypes).
+            return Ok(result);
         }
 
-        // Example: DELETE api/Events/{id}
-        // Requirement: Admin OR Organizer can delete events.
-        [Authorize(Roles = Roles.Admin + "," + Roles.Organizer)] // Allow Admin OR Organizer.
-        [HttpDelete("{id}")] // Define HTTP DELETE method.
-        public IActionResult Delete(Guid id)
-        {
-            // Placeholder for Delete logic.
-            return Ok($"Event {id} deleted");
-        }
-
-        // Example: GET api/Events
-        // Requirement: Public access.
-        [AllowAnonymous] // Allow everyone.
-        [HttpGet] // Define HTTP GET method.
-        public IActionResult GetAll()
-        {
-            // Placeholder for Get logic.
-            return Ok("Public Event List");
-        }
-
+        // 3. DUYỆT SỰ KIỆN (APPROVE)
         // Endpoint: PUT api/Events/{id}/approve
-        // STRICT SECURITY: Only ADMIN can approve events.
+        // Quyền hạn: Chỉ ADMIN mới được duyệt (Strict Security).
         [Authorize(Roles = Roles.Admin)]
         [HttpPut("{id}/approve")]
         public async Task<IActionResult> Approve(Guid id)
         {
-            // 1. Create Command object manually since we take ID from URL path.
+            // Tạo Command object thủ công từ ID trên URL.
             var command = new ApproveEventCommand(id);
 
-            // 2. Send to Mediator.
+            // Gửi qua Mediator.
+            // Handler sẽ check xem sự kiện đã Published chưa để tránh xử lý thừa.
             await Mediator.Send(command);
 
-            // 3. Return 204 No Content.
-            // Standard HTTP status for a successful update request that returns no body.
+            // Trả về 204 No Content (Thành công nhưng không cần trả về dữ liệu gì).
             return NoContent();
+        }
+
+        // 4. XÓA SỰ KIỆN (DELETE) - Placeholder
+        // Endpoint: DELETE api/Events/{id}
+        // Quyền hạn: Admin hoặc Organizer.
+        [Authorize(Roles = Roles.Admin + "," + Roles.Organizer)]
+        [HttpDelete("{id}")]
+        public IActionResult Delete(Guid id)
+        {
+            // (Chưa implement logic xóa thật, tạm thời trả về thông báo).
+            // Sếp có thể yêu cầu implement DeleteEventCommand sau này.
+            return Ok($"Event {id} deleted (Placeholder)");
+        }
+
+        // 5. LẤY DANH SÁCH (GET ALL) - Placeholder
+        // Endpoint: GET api/Events
+        // Quyền hạn: Public.
+        [AllowAnonymous]
+        [HttpGet]
+        public IActionResult GetAll()
+        {
+            // (Chưa implement logic phân trang/filter, tạm thời trả về text).
+            // Sếp có thể yêu cầu implement GetEventsListQuery sau này.
+            return Ok("Public Event List (Placeholder)");
         }
     }
 }
