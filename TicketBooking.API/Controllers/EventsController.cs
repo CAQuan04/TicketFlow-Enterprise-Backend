@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization; // Import Authorization attributes.
 using Microsoft.AspNetCore.Mvc; // Import MVC logic.
 using TicketBooking.API.Controllers; // Import Base Controller.
+using TicketBooking.Application.Features.Events.Commands.ApproveEvent;
 using TicketBooking.Application.Features.Events.Commands.CreateEvent; // Import Command.
 using TicketBooking.Domain.Constants; // Import Roles constants.
 
@@ -51,6 +52,23 @@ namespace TicketBooking.API.Controllers
         {
             // Placeholder for Get logic.
             return Ok("Public Event List");
+        }
+
+        // Endpoint: PUT api/Events/{id}/approve
+        // STRICT SECURITY: Only ADMIN can approve events.
+        [Authorize(Roles = Roles.Admin)]
+        [HttpPut("{id}/approve")]
+        public async Task<IActionResult> Approve(Guid id)
+        {
+            // 1. Create Command object manually since we take ID from URL path.
+            var command = new ApproveEventCommand(id);
+
+            // 2. Send to Mediator.
+            await Mediator.Send(command);
+
+            // 3. Return 204 No Content.
+            // Standard HTTP status for a successful update request that returns no body.
+            return NoContent();
         }
     }
 }
