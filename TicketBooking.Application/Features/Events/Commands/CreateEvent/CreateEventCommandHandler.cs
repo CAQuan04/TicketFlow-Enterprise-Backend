@@ -11,10 +11,11 @@ namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
     public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Guid>
     {
         private readonly IApplicationDbContext _context;
-
-        public CreateEventCommandHandler(IApplicationDbContext context)
+        private readonly ICurrentUserService _currentUserService;
+        public CreateEventCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
         {
             _context = context;
+            _currentUserService = currentUserService;
         }
 
         public async Task<Guid> Handle(CreateEventCommand request, CancellationToken cancellationToken)
@@ -58,6 +59,7 @@ namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
                 StartDateTime = request.StartDateTime,
                 EndDateTime = request.EndDateTime,
                 CoverImageUrl = request.CoverImageUrl,
+                CreatedBy = _currentUserService.UserId,
                 Status = EventStatus.Draft, // Mặc định là bản nháp.
                 CreatedDate = DateTime.UtcNow
             };

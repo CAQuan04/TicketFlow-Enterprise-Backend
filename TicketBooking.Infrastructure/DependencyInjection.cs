@@ -55,6 +55,11 @@ namespace TicketBooking.Infrastructure
             // If adding more providers later, we can use Keyed Services (available in .NET 8).
             services.AddTransient<ISocialAuthService, GoogleAuthService>();
 
+            // 1. Đăng ký HttpContextAccessor (Bắt buộc để đọc Token).
+            services.AddHttpContextAccessor();
+
+            // 2. Đăng ký CurrentUserService (Scoped theo Request).
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
             // Trả về services để có thể viết code nối tiếp (Fluent API).
             return services;
         }
