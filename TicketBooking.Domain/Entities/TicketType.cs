@@ -16,5 +16,10 @@ namespace TicketBooking.Domain.Entities
         // Số lượng vé còn lại có thể bán.
         // Logic: Khi mới tạo, AvailableQuantity phải bằng Quantity.
         public int AvailableQuantity { get; set; }
+
+        // --- CONCURRENCY TOKEN ---
+        // Đây là trường đặc biệt. Mỗi khi dữ liệu dòng này thay đổi, 
+        // SQL Server sẽ tự động thay đổi giá trị binary này.
+        public byte[] RowVersion { get; set; } = null!;
     }
 }

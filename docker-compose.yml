@@ -12,6 +12,12 @@ services:
     volumes:
       - sql_data_vol:/var/opt/mssql
     restart: always
-
+  # THÊM SERVICE REDIS VÀO ĐÂY
+  redis:
+    container_name: ticket-booking-redis
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: always
 volumes:
   sql_data_vol:

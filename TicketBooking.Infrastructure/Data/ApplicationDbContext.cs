@@ -47,6 +47,9 @@ namespace TicketBooking.Infrastructure.Data
                  .WithMany(ev => ev.TicketTypes)
                  .HasForeignKey(tt => tt.EventId)
                  .OnDelete(DeleteBehavior.Cascade);
+                // Cấu hình RowVersion là Concurrency Token
+                e.Property(t => t.RowVersion)
+                 .IsRowVersion(); // EF Core sẽ dùng cái này để sinh câu lệnh SQL check version.
             });
 
             // 4. Order Configuration

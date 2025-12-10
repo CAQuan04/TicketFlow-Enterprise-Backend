@@ -61,6 +61,14 @@ namespace TicketBooking.Infrastructure
             // 2. Đăng ký CurrentUserService (Scoped theo Request).
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             // Trả về services để có thể viết code nối tiếp (Fluent API).
+
+
+            // --- CACHING LAYER (REDIS) ---
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration.GetConnectionString("Redis");
+                options.InstanceName = "TicketFlow_"; // Prefix cho mọi key để tránh trùng lặp với app khác
+            });
             return services;
         }
     }
