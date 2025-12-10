@@ -4,6 +4,7 @@ using TicketBooking.API.Controllers; // Import Base Controller.
 using TicketBooking.Application.Features.Events.Commands.ApproveEvent; // Import Approve Command.
 using TicketBooking.Application.Features.Events.Commands.CreateEvent; // Import Create Command.
 using TicketBooking.Application.Features.Events.Queries.GetEventDetail; // Import Get Detail Query.
+using TicketBooking.Application.Features.Events.Queries.GetEventsList;
 using TicketBooking.Domain.Constants; // Import Roles constants.
 
 namespace TicketBooking.API.Controllers
@@ -75,17 +76,15 @@ namespace TicketBooking.API.Controllers
             // Sếp có thể yêu cầu implement DeleteEventCommand sau này.
             return Ok($"Event {id} deleted (Placeholder)");
         }
-
-        // 5. LẤY DANH SÁCH (GET ALL) - Placeholder
-        // Endpoint: GET api/Events
-        // Quyền hạn: Public.
-        [AllowAnonymous]
         [HttpGet]
-        public IActionResult GetAll()
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAll([FromQuery] GetEventsListQuery query)
         {
-            // (Chưa implement logic phân trang/filter, tạm thời trả về text).
-            // Sếp có thể yêu cầu implement GetEventsListQuery sau này.
-            return Ok("Public Event List (Placeholder)");
+            // [FromQuery]: Tự động lấy các tham số từ URL (Query String) map vào properties của GetEventsListQuery.
+            // MediatR sẽ tự tìm Handler -> Chạy Validator -> Chạy Logic Query -> Trả kết quả.
+            var result = await Mediator.Send(query);
+
+            return Ok(result);
         }
     }
 }
