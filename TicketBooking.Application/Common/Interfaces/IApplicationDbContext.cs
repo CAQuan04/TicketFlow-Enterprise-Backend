@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,6 +19,9 @@ namespace TicketBooking.Application.Common.Interfaces
         DbSet<TicketType> TicketTypes { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+
+        // THÊM DÒNG NÀY: Để truy cập Transaction
+        DatabaseFacade Database { get; }
 
     }
 }
