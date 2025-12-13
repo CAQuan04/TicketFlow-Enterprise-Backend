@@ -82,6 +82,10 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
+// --- BACKGROUND SERVICES ---
+// Đăng ký Worker chạy ngầm. Nó sẽ khởi động cùng với ứng dụng.
+builder.Services.AddHostedService<TicketBooking.Infrastructure.BackgroundJobs.ExpiredOrderCleanupWorker>();
+
 var app = builder.Build();
 
 // --- 2. MIDDLEWARE PIPELINE (Thứ tự cực kỳ quan trọng) ---
