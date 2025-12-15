@@ -17,7 +17,8 @@ namespace TicketBooking.Application.Common.Interfaces
         DbSet<Ticket> Tickets { get; }
         DbSet<Venue> Venues { get; }
         DbSet<TicketType> TicketTypes { get; }
-
+        DbSet<Wallet> Wallets { get; }
+        DbSet<WalletTransaction> WalletTransactions { get; }
         Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 
         // THÊM DÒNG NÀY: Để truy cập Transaction

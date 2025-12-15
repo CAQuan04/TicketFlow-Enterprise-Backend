@@ -47,7 +47,7 @@ namespace TicketBooking.Infrastructure
             // Add inside AddInfrastructure method:
             services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
             services.AddTransient<IEmailService, SmtpEmailService>();
-
+            services.AddScoped<IWalletService, WalletService>();
             // Configure Google Settings.
             services.Configure<GoogleSettings>(configuration.GetSection(GoogleSettings.SectionName));
 

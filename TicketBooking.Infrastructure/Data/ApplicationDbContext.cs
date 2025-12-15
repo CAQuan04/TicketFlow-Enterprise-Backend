@@ -17,6 +17,9 @@ namespace TicketBooking.Infrastructure.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
 
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<WalletTransaction> WalletTransactions { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -74,6 +77,12 @@ namespace TicketBooking.Infrastructure.Data
                  .HasForeignKey(t => t.TicketTypeId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
+
+            // Dòng này cực kỳ quan trọng: Nó bảo EF Core quét toàn bộ Project này 
+            // để tìm các class Configuration (WalletConfiguration, etc.) và áp dụng.
+            builder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+
+            base.OnModelCreating(builder);
         }
     }
 }
