@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration; // Thư viện để đọc file appse
 using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
 using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
 using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
+using TicketBooking.Application.Common.Interfaces.Data;
 using TicketBooking.Application.Common.Interfaces.Payments;
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
 using TicketBooking.Infrastructure.Authentication.Social;
@@ -68,6 +69,10 @@ namespace TicketBooking.Infrastructure
             services.AddTransient<IPaymentGateway, VnPayPaymentGateway>();
             // Thêm vào trong hàm AddInfrastructure
             services.AddTransient<IVnPayValidationService, VnPayValidationService>();
+
+            // Thêm vào trong method AddInfrastructure:
+            // Đăng ký dạng Transient vì IDbConnection là object nhẹ, nên tạo mới mỗi khi cần dùng và dispose ngay.
+            services.AddTransient<ISqlConnectionFactory, SqlConnectionFactory>();
 
             services.AddTransient<IQrCodeService, QrCodeService>();
             // --- CACHING LAYER (REDIS) ---
