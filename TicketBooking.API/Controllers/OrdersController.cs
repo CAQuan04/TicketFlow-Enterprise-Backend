@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc; // Dùng cho Controller.
 using TicketBooking.API.Controllers; // Kế thừa BaseController.
 using TicketBooking.Application.Features.Orders.Commands.CreateOrder; // Import Command.
+using TicketBooking.Application.Features.Orders.Commands.PayOrder;
 using TicketBooking.Application.Features.Orders.Queries.GetOrderById; // Import Query.
 using TicketBooking.Domain.Constants; // Import Roles.
 
@@ -48,6 +49,19 @@ namespace TicketBooking.API.Controllers
             var query = new GetOrderByIdQuery(id);
             var result = await Mediator.Send(query);
             return Ok(result);
+        }
+
+        // Endpoint: POST api/Orders/{id}/pay
+        // Action: Dùng tiền trong ví để trả cho đơn hàng Pending.
+        [Authorize(Roles = Roles.Customer)]
+        [HttpPost("{id}/pay")]
+        public async Task<IActionResult> PayWithWallet(Guid id)
+        {
+            var command = new PayOrderCommand(id);
+            var result = await Mediator.Send(command);
+
+            // Trả về 200 OK nếu thành công.
+            return Ok(new { Message = "Payment successful. Ticket has been sent to your email." });
         }
     }
 }

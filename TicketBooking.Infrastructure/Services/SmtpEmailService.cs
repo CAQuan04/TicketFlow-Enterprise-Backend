@@ -24,7 +24,7 @@ namespace TicketBooking.Infrastructure.Services
         }
 
         // Main method to send email.
-        public async Task SendEmailAsync(string toEmail, string subject, string body)
+        public async Task SendEmailAsync(string toEmail, string subject, string body, byte[]? attachmentData = null, string? attachmentName = null)
         {
             try
             {
@@ -45,6 +45,13 @@ namespace TicketBooking.Infrastructure.Services
                 {
                     HtmlBody = body // Assign the HTML content.
                 };
+
+                // Nếu có file đính kèm (QR Code) thì add vào.
+                if (attachmentData != null && !string.IsNullOrEmpty(attachmentName))
+                {
+                    bodyBuilder.Attachments.Add(attachmentName, attachmentData, ContentType.Parse("image/png"));
+                }
+
                 message.Body = bodyBuilder.ToMessageBody();
 
                 // 6. INITIALIZE SMTP CLIENT (MailKit).

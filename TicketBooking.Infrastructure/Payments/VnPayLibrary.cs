@@ -53,24 +53,32 @@ namespace TicketBooking.Infrastructure.Payments
 
         // ... (Giữ nguyên các hàm ValidateSignature và HmacSHA512 bên dưới)
 
+        // Method to validate the signature received from VNPay.
         public bool ValidateSignature(string inputHash, string secretKey)
         {
+            // 1. Get the raw data string from the stored parameters.
+            // Ensure data is sorted alphabetically (VnPay requirement).
             StringBuilder data = new StringBuilder();
             foreach (KeyValuePair<string, string> kv in _requestData)
             {
                 if (!string.IsNullOrEmpty(kv.Value))
                 {
-                    string encodedKey = WebUtility.UrlEncode(kv.Key);
-                    string encodedValue = WebUtility.UrlEncode(kv.Value);
-                    data.Append(encodedKey + "=" + encodedValue + "&");
+                    data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value) + "&");
                 }
             }
+
+            // 2. Remove the trailing '&'.
             string rawData = data.ToString();
             if (rawData.Length > 0)
             {
                 rawData = rawData.Remove(rawData.Length - 1, 1);
             }
+
+            // 3. Generate the hash again using our Secret Key.
             string myChecksum = HmacSHA512(secretKey, rawData);
+
+            // 4. Compare our hash with VNPay's hash.
+            // Case-insensitive comparison is safer for hex strings.
             return myChecksum.Equals(inputHash, StringComparison.InvariantCultureIgnoreCase);
         }
 

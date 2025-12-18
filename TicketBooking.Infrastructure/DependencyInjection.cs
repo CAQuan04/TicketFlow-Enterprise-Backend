@@ -66,7 +66,10 @@ namespace TicketBooking.Infrastructure
 
             services.Configure<VnPaySettings>(configuration.GetSection(VnPaySettings.SectionName));
             services.AddTransient<IPaymentGateway, VnPayPaymentGateway>();
+            // Thêm vào trong hàm AddInfrastructure
+            services.AddTransient<IVnPayValidationService, VnPayValidationService>();
 
+            services.AddTransient<IQrCodeService, QrCodeService>();
             // --- CACHING LAYER (REDIS) ---
             services.AddStackExchangeRedisCache(options =>
             {

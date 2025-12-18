@@ -18,5 +18,8 @@ namespace TicketBooking.Domain.Entities
         public string ReferenceId { get; set; } = string.Empty;
 
         public string Description { get; set; } = string.Empty;
+
+        // Thêm property này vào class WalletTransaction
+        public TransactionStatus Status { get; set; } = TransactionStatus.Pending;
     }
 }
