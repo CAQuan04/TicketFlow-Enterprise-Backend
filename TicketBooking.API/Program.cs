@@ -6,11 +6,12 @@ using System.Text;
 using TicketBooking.API.Infrastructure; // Import namespace chứa GlobalExceptionHandler
 using TicketBooking.Application;
 using TicketBooking.Infrastructure;
+using TicketBooking.Infrastructure.Hubs; // Import Hub.
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. REGISTER SERVICES (Dependency Injection) ---
-
+builder.Services.AddSignalR(); // Đăng ký dịch vụ SignalR Core.
 // Add Application & Infrastructure
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -70,6 +71,34 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
     };
+
+    // ⚠️ LOGIC QUAN TRỌNG ĐỂ HỖ TRỢ SIGNALR TRÊN TRÌNH DUYỆT ⚠️
+    options.Events = new JwtBearerEvents
+    {
+        // Event này kích hoạt khi Server nhận được một request, cho phép ta can thiệp vào việc lấy Token.
+        OnMessageReceived = context =>
+        {
+            // 1. Cố gắng lấy Token từ Query String (tên tham số thường là "access_token").
+            // Lý do: WebSocket API của trình duyệt JavaScript không cho phép set Header, chỉ cho phép nối vào URL.
+            var accessToken = context.Request.Query["access_token"];
+
+            // 2. Lấy đường dẫn (Path) của request hiện tại.
+            var path = context.HttpContext.Request.Path;
+
+            // 3. Kiểm tra điều kiện:
+            // - Token không được rỗng.
+            // - Đường dẫn phải bắt đầu bằng "/hubs/notifications" (Endpoint của SignalR Hub).
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
+            {
+                // 4. Gán Token lấy được từ URL vào Context.
+                // Điều này giúp Middleware xác thực phía sau hiểu rằng: "À, đây là Token, hãy validate nó đi".
+                context.Token = accessToken;
+            }
+
+            // 5. Trả về Task hoàn thành để Pipeline tiếp tục chạy.
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // 1. THÊM DỊCH VỤ CORS (Cho phép mọi nguồn truy cập - Dùng cho Dev)
@@ -113,6 +142,10 @@ app.UseCors("AllowAll");
 // AuthN trước AuthZ
 app.UseAuthentication();
 app.UseAuthorization();
+
+// --- 3. MAP HUB ENDPOINT ---
+// Định nghĩa địa chỉ URL để Client kết nối vào.
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.MapControllers();
 
