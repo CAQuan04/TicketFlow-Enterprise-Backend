@@ -23,5 +23,21 @@ namespace TicketBooking.Infrastructure.Hubs
 
             await base.OnConnectedAsync();
         }
+
+        // Client (Frontend) sẽ gọi hàm này khi họ mở trang chi tiết sự kiện.
+        // Ví dụ: connection.invoke("JoinEventGroup", "event-guid-id");
+        public async Task JoinEventGroup(string eventId)
+        {
+            // Thêm Connection hiện tại vào nhóm có tên là EventId.
+            // SignalR tự quản lý danh sách này trong bộ nhớ.
+            await Groups.AddToGroupAsync(Context.ConnectionId, eventId);
+        }
+
+        // Client gọi hàm này khi họ rời trang sự kiện.
+        public async Task LeaveEventGroup(string eventId)
+        {
+            // Xóa khỏi nhóm để không nhận thông báo rác nữa.
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, eventId);
+        }
     }
 }

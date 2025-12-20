@@ -1,9 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore; // Dùng để truy vấn DB.
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore; // Dùng để truy vấn DB.
 using Microsoft.Extensions.DependencyInjection; // Dùng để tạo Scope.
 using Microsoft.Extensions.Hosting; // Dùng cho BackgroundService.
 using Microsoft.Extensions.Logging; // Dùng để ghi Log.
+using TicketBooking.Application.Common.Interfaces.RealTime;
 using TicketBooking.Domain.Enums; // Dùng OrderStatus.
-using TicketBooking.Infrastructure.Data; // Dùng ApplicationDbContext.
+using TicketBooking.Infrastructure.Data;
+using TicketBooking.Infrastructure.Hubs; // Dùng ApplicationDbContext.
 
 namespace TicketBooking.Infrastructure.BackgroundJobs
 {
@@ -13,13 +16,16 @@ namespace TicketBooking.Infrastructure.BackgroundJobs
         // Factory dùng để tạo ra một Scope mới (bắt buộc vì Worker là Singleton).
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<ExpiredOrderCleanupWorker> _logger;
-
+        // Inject HubContext vào Singleton Service vẫn hoạt động tốt (Thread-safe).
+        private readonly IHubContext<NotificationHub, INotificationClient> _hubContext;
         public ExpiredOrderCleanupWorker(
             IServiceScopeFactory serviceScopeFactory,
-            ILogger<ExpiredOrderCleanupWorker> logger)
+            ILogger<ExpiredOrderCleanupWorker> logger,
+            IHubContext<NotificationHub, INotificationClient> hubContext)
         {
             _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
+            _hubContext = hubContext;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -85,6 +91,11 @@ namespace TicketBooking.Infrastructure.BackgroundJobs
                 // Giả định: Trong 1 Order các vé thường cùng loại (theo logic CreateOrder bài trước).
                 // Tuy nhiên code này hỗ trợ cả trường hợp Order có nhiều loại vé khác nhau (Robustness).
 
+                // --- 1. NOTIFY USER (PERSONAL) ---
+                // Báo cho người mua biết họ đã mất vé.
+                await _hubContext.Clients.User(order.UserId.ToString())
+                    .ReceiveNotification($"Đơn hàng #{order.OrderCode} đã bị hủy do hết hạn thanh toán.");
+
                 // Gom nhóm các vé theo loại (TicketType) để cộng dồn số lượng trả lại.
                 var ticketsByTypes = order.Tickets.GroupBy(t => t.TicketType);
 
@@ -96,6 +107,12 @@ namespace TicketBooking.Infrastructure.BackgroundJobs
                     // Cộng ngược lại vào kho.
                     // EF Core đang theo dõi ticketType này (nhờ Include ở trên), nên nó sẽ tự generate UPDATE SQL.
                     ticketType.AvailableQuantity += quantityToRestore;
+
+                    // --- 2. NOTIFY GROUP (BROADCAST INVENTORY) ---
+                    // Báo cho tất cả những ai đang xem Event này là số lượng vé đã thay đổi.
+                    // Group Name là EventId (string).
+                    await _hubContext.Clients.Group(ticketType.EventId.ToString())
+                        .UpdateInventory(ticketType.EventId, ticketType.AvailableQuantity);
 
                     _logger.LogInformation($"Restored {quantityToRestore} tickets for Type ID: {ticketType.Id} from Order {order.OrderCode}");
                 }

@@ -4,6 +4,7 @@ using TicketBooking.Application.Common.Interfaces;
 using TicketBooking.Application.Common.Interfaces.Payments; // Import Interface mới
 using TicketBooking.Domain.Entities;
 using TicketBooking.Domain.Enums;
+using TicketBooking.Application.Common.Interfaces.RealTime; // Import Client Interface.
 
 namespace TicketBooking.Application.Features.Payments.Commands.ProcessVnPayIpn
 {
@@ -11,14 +12,17 @@ namespace TicketBooking.Application.Features.Payments.Commands.ProcessVnPayIpn
     {
         private readonly IApplicationDbContext _context;
         private readonly IVnPayValidationService _vnPayValidationService; // Inject Interface
+        private readonly INotificationService _notificationService;
 
         // Constructor thay đổi: Không inject VnPaySettings nữa
         public ProcessVnPayIpnCommandHandler(
             IApplicationDbContext context,
-            IVnPayValidationService vnPayValidationService)
+            IVnPayValidationService vnPayValidationService,
+            INotificationService notificationService)
         {
             _context = context;
             _vnPayValidationService = vnPayValidationService;
+            _notificationService = notificationService;
         }
 
         public async Task<VnPayIpnResponseDto> Handle(ProcessVnPayIpnCommand request, CancellationToken cancellationToken)
@@ -76,6 +80,14 @@ namespace TicketBooking.Application.Features.Payments.Commands.ProcessVnPayIpn
 
                     await _context.SaveChangesAsync(cancellationToken);
                     await dbTransaction.CommitAsync(cancellationToken);
+
+                    // --- REAL-TIME NOTIFICATION (NEW) ---
+                    // Gửi thông báo đến CỤ THỂ User sở hữu Wallet này.
+                    // transaction.Wallet.UserId là Guid, SignalR dùng String nên cần .ToString().
+                    await _notificationService.SendToUserAsync(
+                        transaction.Wallet.UserId.ToString(),
+                        $"Nạp thành công {transaction.Amount:N0} VND vào ví! (Mã GD: {vnp_TxnRef})"
+                    );
 
                     return new VnPayIpnResponseDto("00", "Confirm Success");
                 }

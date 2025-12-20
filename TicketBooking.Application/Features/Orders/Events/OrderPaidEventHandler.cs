@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using Microsoft.EntityFrameworkCore;
 using TicketBooking.Application.Common.Interfaces;
+using TicketBooking.Application.Common.Interfaces.RealTime;
 
 namespace TicketBooking.Application.Features.Orders.Events
 {
@@ -9,15 +10,18 @@ namespace TicketBooking.Application.Features.Orders.Events
         private readonly IApplicationDbContext _context;
         private readonly IEmailService _emailService;
         private readonly IQrCodeService _qrCodeService;
+        private readonly INotificationService _notificationService;
 
         public OrderPaidEventHandler(
             IApplicationDbContext context,
             IEmailService emailService,
-            IQrCodeService qrCodeService)
+            IQrCodeService qrCodeService,
+            INotificationService notificationService)
         {
             _context = context;
             _emailService = emailService;
             _qrCodeService = qrCodeService;
+            _notificationService = notificationService;
         }
 
         public async Task Handle(OrderPaidNotification notification, CancellationToken cancellationToken)
@@ -30,6 +34,22 @@ namespace TicketBooking.Application.Features.Orders.Events
                 .FirstOrDefaultAsync(o => o.Id == notification.OrderId, cancellationToken);
 
             if (order == null) return;
+
+            // --- 🔥 REAL-TIME NOTIFICATION (DÙNG INTERFACE) ---
+            // Gửi thông báo NGAY LẬP TỨC qua Interface.
+            // Lớp Infrastructure sẽ lo việc dùng SignalR để gửi đi.
+            try
+            {
+                await _notificationService.SendToUserAsync(
+                    order.UserId.ToString(),
+                    $"🎉 Thanh toán thành công đơn hàng #{order.OrderCode}! Vé đang được gửi tới email của bạn."
+                );
+            }
+            catch
+            {
+                // Fire-and-forget: Lỗi thông báo không được làm chết luồng gửi mail
+            }
+
 
             // 2. Duyệt qua từng vé để gửi mail (Hoặc gửi 1 mail chung chứa nhiều vé).
             // Ở đây demo gửi vé đầu tiên đại diện (hoặc gửi file PDF chứa tất cả QR - nâng cao).

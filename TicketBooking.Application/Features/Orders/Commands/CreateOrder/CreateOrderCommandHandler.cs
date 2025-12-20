@@ -1,9 +1,11 @@
 ﻿using MediatR; // Dùng cho IRequestHandler.
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore; // Dùng cho các hàm Async của EF Core.
 using Microsoft.Extensions.Caching.Distributed; // Dùng cho Redis Cache.
 using System.Text.Json; // Dùng để serialize object lưu vào Redis.
 using TicketBooking.Application.Common.Exceptions; // Dùng Custom Exceptions.
 using TicketBooking.Application.Common.Interfaces; // Dùng DbContext.
+using TicketBooking.Application.Common.Interfaces.RealTime;
 using TicketBooking.Domain.Entities; // Dùng Entity Order, Ticket.
 using TicketBooking.Domain.Enums; // Dùng Enum OrderStatus.
 
@@ -15,16 +17,18 @@ namespace TicketBooking.Application.Features.Orders.Commands.CreateOrder
         private readonly IApplicationDbContext _context; // Truy cập Database.
         private readonly ICurrentUserService _currentUserService; // Lấy ID người đang login.
         private readonly IDistributedCache _distributedCache; // Truy cập Redis.
-
+        private readonly INotificationService _notificationService;
         // Constructor Injection.
         public CreateOrderCommandHandler(
             IApplicationDbContext context,
             ICurrentUserService currentUserService,
-            IDistributedCache distributedCache)
+            IDistributedCache distributedCache,
+            INotificationService notificationService)
         {
             _context = context;
             _currentUserService = currentUserService;
             _distributedCache = distributedCache;
+            _notificationService = notificationService;
         }
 
         public async Task<Guid> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
@@ -107,6 +111,15 @@ namespace TicketBooking.Application.Features.Orders.Commands.CreateOrder
                 // Nếu chạy đến dòng này nghĩa là không có xung đột RowVersion.
                 // Chúng ta chốt giao dịch.
                 await transaction.CommitAsync(cancellationToken);
+
+                // --- 🔥 REAL-TIME FOMO BROADCAST (DÙNG INTERFACE) ---
+                // Gửi thông báo cập nhật kho vé qua Interface
+                // Bên trong implementation (Infrastructure) sẽ xử lý logic SignalR
+                await _notificationService.SendToGroupAsync(
+                    ticketType.EventId.ToString(),
+                    "UpdateInventory",
+                    ticketType.AvailableQuantity
+                );
 
                 // 7. REDIS CACHING (PERFORMANCE)
                 // Lưu trạng thái đơn hàng vào Redis để truy xuất nhanh (ví dụ cho trang Payment check status).

@@ -5,6 +5,7 @@ using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface
 using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
 using TicketBooking.Application.Common.Interfaces.Data;
 using TicketBooking.Application.Common.Interfaces.Payments;
+using TicketBooking.Application.Common.Interfaces.RealTime;
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
 using TicketBooking.Infrastructure.Authentication.Social;
 using TicketBooking.Infrastructure.Data;
@@ -73,6 +74,9 @@ namespace TicketBooking.Infrastructure
             // Thêm vào trong method AddInfrastructure:
             // Đăng ký dạng Transient vì IDbConnection là object nhẹ, nên tạo mới mỗi khi cần dùng và dispose ngay.
             services.AddTransient<ISqlConnectionFactory, SqlConnectionFactory>();
+
+            // Đăng ký Service gửi thông báo
+            services.AddTransient<INotificationService, SignalRNotificationService>();
 
             services.AddTransient<IQrCodeService, QrCodeService>();
             // --- CACHING LAYER (REDIS) ---
