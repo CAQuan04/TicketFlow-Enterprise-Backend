@@ -14,7 +14,14 @@ namespace TicketBooking.Application.Common.Exceptions
         {
             Errors = new Dictionary<string, string[]>();
         }
-
+        public ValidationException(string message)
+           : base(message)
+        {
+            Errors = new Dictionary<string, string[]>
+            {
+                { "BusinessRule", new[] { message } }
+            };
+        }
         // Constructor accepting a list of ValidationFailure objects from FluentValidation.
         public ValidationException(IEnumerable<ValidationFailure> failures)
             : this() // Call the base constructor first.

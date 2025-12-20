@@ -19,7 +19,7 @@ namespace TicketBooking.Infrastructure.Data
 
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
-
+        public DbSet<CheckInHistory> CheckInHistories { get; set; }
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
