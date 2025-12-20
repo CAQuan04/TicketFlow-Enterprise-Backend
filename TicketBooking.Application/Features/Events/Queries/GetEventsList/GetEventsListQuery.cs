@@ -13,5 +13,6 @@ namespace TicketBooking.Application.Features.Events.Queries.GetEventsList
         public string? SearchTerm { get; init; } // Tìm theo tên hoặc mô tả.
         public Guid? VenueId { get; init; }      // Lọc theo địa điểm.
         public DateTime? FromDate { get; init; } // Lọc sự kiện từ ngày này trở đi.
+        public DateTime? ToDate { get; init; }   // Đến ngày.
     }
 }

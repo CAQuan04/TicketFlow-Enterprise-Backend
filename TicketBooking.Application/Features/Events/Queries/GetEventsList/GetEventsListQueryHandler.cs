@@ -24,6 +24,7 @@ namespace TicketBooking.Application.Features.Events.Queries.GetEventsList
             var query = _context.Events
                 .AsNoTracking()
                 .Include(e => e.Venue) // Chuẩn bị Join bảng Venue.
+                .Include(e => e.TicketTypes) // Eager Load TicketTypes để tính giá Min.
                 .Where(e => e.Status == EventStatus.Published) // Business Rule: Chỉ lấy sự kiện đã Public.
                 .AsQueryable();
 
@@ -45,13 +46,18 @@ namespace TicketBooking.Application.Features.Events.Queries.GetEventsList
                 query = query.Where(e => e.VenueId == request.VenueId);
             }
 
-            // Lọc theo ngày (FromDate)
+            // Lọc theo khoảng thời gian (Date Range) - SARGABLE QUERY
             if (request.FromDate.HasValue)
             {
-                // SQL Translation: AND StartDateTime >= '2025-10-10'
-                // Logic: Lấy các sự kiện diễn ra từ ngày được chọn trở về sau.
-                var date = request.FromDate.Value.Date;
-                query = query.Where(e => e.StartDateTime >= date);
+                // SQL: AND StartDateTime >= '...'
+                // Đây là query SARGable (Search ARGument ABLE), tận dụng triệt để Index IX_Events_StartDateTime.
+                query = query.Where(e => e.StartDateTime >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                // SQL: AND StartDateTime <= '...'
+                query = query.Where(e => e.StartDateTime <= request.ToDate.Value);
             }
 
             // 3. SORTING (SẮP XẾP)
