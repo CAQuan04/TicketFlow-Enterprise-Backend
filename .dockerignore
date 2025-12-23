@@ -1,0 +1,22 @@
+# Bỏ qua thư mục build local (Rất nặng và không tương thích Linux)
+**/*.bin
+**/*.obj
+**/bin
+**/obj
+
+# Bỏ qua Git tracking
+.git
+.gitignore
+
+# Bỏ qua cài đặt IDE (Visual Studio, VS Code)
+.vs
+.vscode
+*.user
+*.suo
+
+# Bỏ qua kết quả Test
+TestResults
+
+# Bỏ qua file cấu hình Docker cũ (tránh loop)
+Dockerfile
+docker-compose.yml
