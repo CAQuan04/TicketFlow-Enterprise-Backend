@@ -3,57 +3,33 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using TicketBooking.API.Infrastructure; // Import namespace chứa GlobalExceptionHandler
+using TicketBooking.API.Infrastructure;
 using TicketBooking.Application;
 using TicketBooking.Infrastructure;
-using TicketBooking.Infrastructure.Hubs; // Import Hub.
+using TicketBooking.Infrastructure.Hubs;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using TicketBooking.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. REGISTER SERVICES (Dependency Injection) ---
-builder.Services.AddSignalR(); // Đăng ký dịch vụ SignalR Core.
-// Add Application & Infrastructure
+// ==================================================================
+// 1. SERVICE REGISTRATION (DEPENDENCY INJECTION)
+// ==================================================================
+
+// A. Core Services
+builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddEndpointsApiExplorer();
+
+// B. Layer Services (Clean Architecture)
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Add Controllers
-builder.Services.AddControllers();
-
-// Add Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "TicketBooking API", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme.",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
-                Scheme = "oauth2",
-                Name = "Bearer",
-                In = ParameterLocation.Header,
-            },
-            new List<string>()
-        }
-    });
-});
-
-// --- QUAN TRỌNG: CẤU HÌNH XỬ LÝ LỖI GLOBAL ---
-builder.Services.AddProblemDetails(); // Thêm service ProblemDetails chuẩn của .NET
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>(); // Đăng ký Handler tùy chỉnh của chúng ta
-
-// Cấu hình Authentication (Giữ nguyên như cũ)
+// C. Security & Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -72,56 +48,91 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
     };
 
-    // ⚠️ LOGIC QUAN TRỌNG ĐỂ HỖ TRỢ SIGNALR TRÊN TRÌNH DUYỆT ⚠️
+    // WebSocket Auth Support (SignalR)
     options.Events = new JwtBearerEvents
     {
-        // Event này kích hoạt khi Server nhận được một request, cho phép ta can thiệp vào việc lấy Token.
         OnMessageReceived = context =>
         {
-            // 1. Cố gắng lấy Token từ Query String (tên tham số thường là "access_token").
-            // Lý do: WebSocket API của trình duyệt JavaScript không cho phép set Header, chỉ cho phép nối vào URL.
             var accessToken = context.Request.Query["access_token"];
-
-            // 2. Lấy đường dẫn (Path) của request hiện tại.
             var path = context.HttpContext.Request.Path;
-
-            // 3. Kiểm tra điều kiện:
-            // - Token không được rỗng.
-            // - Đường dẫn phải bắt đầu bằng "/hubs/notifications" (Endpoint của SignalR Hub).
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/notifications"))
             {
-                // 4. Gán Token lấy được từ URL vào Context.
-                // Điều này giúp Middleware xác thực phía sau hiểu rằng: "À, đây là Token, hãy validate nó đi".
                 context.Token = accessToken;
             }
-
-            // 5. Trả về Task hoàn thành để Pipeline tiếp tục chạy.
             return Task.CompletedTask;
         }
     };
 });
 
-// 1. THÊM DỊCH VỤ CORS (Cho phép mọi nguồn truy cập - Dùng cho Dev)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        builder => builder
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+    options.AddPolicy("AllowAll", builder =>
+        builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
-// --- BACKGROUND SERVICES ---
-// Đăng ký Worker chạy ngầm. Nó sẽ khởi động cùng với ứng dụng.
+// D. Error Handling
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// E. Health Checks
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<ApplicationDbContext>(name: "Database")
+    .AddRedis(builder.Configuration.GetConnectionString("Redis")!, name: "Redis Cache");
+
+// F. Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("GlobalLimiter", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 100;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueLimit = 2;
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+});
+
+// G. Resilience (Polly)
+builder.Services.AddHttpClient("ExternalApi")
+    .AddStandardResilienceHandler();
+
+// H. Background Workers
 builder.Services.AddHostedService<TicketBooking.Infrastructure.BackgroundJobs.ExpiredOrderCleanupWorker>();
+
+// I. Swagger
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "TicketBooking API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
-// --- 2. MIDDLEWARE PIPELINE (Thứ tự cực kỳ quan trọng) ---
+// ==================================================================
+// 2. MIDDLEWARE PIPELINE (REQUEST PROCESSING)
+// ==================================================================
 
-// ⚠️ QUAN TRỌNG NHẤT: UseExceptionHandler phải nằm ĐẦU TIÊN
-// Để nó có thể bắt lỗi từ tất cả các middleware bên dưới nó.
-app.UseExceptionHandler();
+app.UseExceptionHandler(); // Luôn đặt đầu tiên để bắt mọi lỗi.
 
 if (app.Environment.IsDevelopment())
 {
@@ -130,51 +141,44 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// --- ENABLE STATIC FILES (QUAN TRỌNG) ---
-// Middleware này cho phép trình duyệt truy cập ảnh trong thư mục wwwroot.
-// Nếu không có dòng này, link ảnh trả về sẽ không xem được.
 app.UseStaticFiles();
 
-// 2. KÍCH HOẠT CORS (Phải đặt TRƯỚC UseAuthentication và UseAuthorization)
+// CORS -> AuthN -> RateLimit -> AuthZ
 app.UseCors("AllowAll");
-
-// AuthN trước AuthZ
 app.UseAuthentication();
+app.UseRateLimiter(); // Đặt sau Auth để sẵn sàng limit theo User ID nếu cần sau này.
 app.UseAuthorization();
 
-// --- 3. MAP HUB ENDPOINT ---
-// Định nghĩa địa chỉ URL để Client kết nối vào.
+// ==================================================================
+// 3. ENDPOINT MAPPING
+// ==================================================================
+
 app.MapHub<NotificationHub>("/hubs/notifications");
 
-app.MapControllers();
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = HealthCheckResponseWriter.WriteResponse
+}).AllowAnonymous();
 
+app.MapControllers().RequireRateLimiting("GlobalLimiter");
 
-// Create a scope to resolve scoped services like DbContext and DataSeeder.
-// Create a scope to resolve scoped services.
+// ==================================================================
+// 4. DATA SEEDING (AUTO MIGRATION)
+// ==================================================================
+
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-
     try
     {
-        // 1. Get the DbContext to access Database functions.
         var context = services.GetRequiredService<TicketBooking.Infrastructure.Data.ApplicationDbContext>();
-
-        // 2. AUTOMATICALLY APPLY MIGRATIONS
-        // This command checks if there are any migrations in the code that haven't been applied to the DB.
-        // If the DB doesn't exist (like your fresh Docker case), it creates the DB and all Tables.
-        // Equivalent to running "Update-Database" manually.
         await context.Database.MigrateAsync();
 
-        // 3. SEED DATA
-        // Now that the DB and Tables exist, we can safely insert seed data.
         var seeder = services.GetRequiredService<TicketBooking.Infrastructure.Data.DataSeeder>();
         await seeder.SeedAsync();
     }
     catch (Exception ex)
     {
-        // Log any errors during startup (crucial for debugging Docker issues).
         var logger = services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "An error occurred while initializing the database.");
     }
