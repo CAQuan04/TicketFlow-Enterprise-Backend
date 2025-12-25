@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Enti
 using Microsoft.Extensions.Configuration; // Thư viện để đọc file appsettings.json.
 using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
 using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
+using TicketBooking.Application.Common.Interfaces.AI;
 using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
 using TicketBooking.Application.Common.Interfaces.Data;
 using TicketBooking.Application.Common.Interfaces.Payments;
 using TicketBooking.Application.Common.Interfaces.RealTime;
+using TicketBooking.Infrastructure.AI;
 using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
 using TicketBooking.Infrastructure.Authentication.Social;
 using TicketBooking.Infrastructure.Data;
@@ -77,7 +79,7 @@ namespace TicketBooking.Infrastructure
             // 2. Đăng ký CurrentUserService (Scoped theo Request).
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             // Trả về services để có thể viết code nối tiếp (Fluent API).
-
+            services.AddSingleton<IRecommendationService, RecommendationService>();
             services.Configure<VnPaySettings>(configuration.GetSection(VnPaySettings.SectionName));
             services.AddTransient<IPaymentGateway, VnPayPaymentGateway>();
             // Thêm vào trong hàm AddInfrastructure
