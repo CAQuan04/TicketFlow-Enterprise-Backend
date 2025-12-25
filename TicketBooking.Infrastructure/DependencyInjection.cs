@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Entity Framework Core.
+﻿using Elastic.Clients.Elasticsearch; // Import namespace.
+using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Entity Framework Core.
 using Microsoft.Extensions.Configuration; // Thư viện để đọc file appsettings.json.
 using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
 using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
@@ -11,8 +12,8 @@ using TicketBooking.Infrastructure.Authentication.Social;
 using TicketBooking.Infrastructure.Data;
 using TicketBooking.Infrastructure.FileStorage;
 using TicketBooking.Infrastructure.Payments;
+using TicketBooking.Infrastructure.Search;
 using TicketBooking.Infrastructure.Services; // Namespace chứa ApplicationDbContext.
-
 namespace TicketBooking.Infrastructure
 {
     // Class tĩnh dùng để gom nhóm các cấu hình Dependency Injection cho Infrastructure layer.
@@ -21,6 +22,17 @@ namespace TicketBooking.Infrastructure
         // Hàm mở rộng (Extension method) giúp Program.cs gọi ngắn gọn: .AddInfrastructure(...)
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            // 1. Config Elasticsearch URL
+            var esUrl = configuration["ElasticSearch:Uri"] ?? "http://localhost:9200";
+
+            // 2. Register Client (Singleton is best practice for ES Client).
+            services.AddSingleton<ElasticsearchClient>(_ =>
+            {
+                var settings = new ElasticsearchClientSettings(new Uri(esUrl))
+                    .DefaultIndex("events"); // Mặc định thao tác với index tên là "events".
+
+                return new ElasticsearchClient(settings);
+            });
             // --- 1. CẤU HÌNH DATABASE ---
 
             // Đăng ký ApplicationDbContext vào DI Container.
@@ -32,7 +44,7 @@ namespace TicketBooking.Infrastructure
             // Điều này giúp lớp Application dùng được DB mà không phụ thuộc trực tiếp vào EF Core.
             services.AddScoped<IApplicationDbContext>(provider =>
                 provider.GetRequiredService<ApplicationDbContext>());
-
+            services.AddScoped<ISearchService, ElasticSearchService>();
             // --- 2. CẤU HÌNH BẢO MẬT (AUTH) ---
 
             // Đọc phần "JwtSettings" từ appsettings.json và map vào class JwtSettings.

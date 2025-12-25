@@ -1,4 +1,5 @@
 ﻿namespace TicketBooking.Domain.Common
+
 {
     // Class cha cho tất cả các Entity trong hệ thống.
     public abstract class BaseEntity

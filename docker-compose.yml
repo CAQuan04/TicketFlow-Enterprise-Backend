@@ -19,5 +19,31 @@ services:
     ports:
       - "6379:6379"
     restart: always
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: ticket-booking-elastic
+    environment:
+      - discovery.type=single-node # Chạy 1 node cho môi trường Dev.
+      - xpack.security.enabled=false # Tắt bảo mật (HTTPS/User) để dev cho nhanh.
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m # Giới hạn RAM (Java rất ngốn RAM).
+    ports:
+      - "9200:9200" # Cổng API.
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: always
+
+  # DASHBOARD UI (Để xem dữ liệu trong Elastic)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.1
+    container_name: ticket-booking-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    restart: always
+
 volumes:
   sql_data_vol:
