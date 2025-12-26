@@ -27,7 +27,7 @@ namespace TicketBooking.API.Controllers
         }
 
         // GET api/events/recommendations
-        [HttpGet("events/recommendations")]
+        [HttpGet("/api/events/recommendations")]
         public async Task<IActionResult> GetRecommendations()
         {
             // 1. Lấy ID người dùng hiện tại.
@@ -55,29 +55,21 @@ namespace TicketBooking.API.Controllers
                 .Where(e => recommendedIds.Contains(e.Id))
                 .ToListAsync();
 
-            // Sắp xếp lại list events theo đúng thứ tự mà AI đã recommend.
+            // Sử dụng Named Arguments như bài trước để tránh lỗi DTO
             var sortedEvents = recommendedIds
                 .Join(events, id => id, e => e.Id, (id, e) => e)
                 .Select(e => new EventListDto(
-                    // 👇 DÙNG NAMED ARGUMENTS (TênBiến: GiáTrị) ĐỂ SỬA LỖI
                     Id: e.Id,
                     Name: e.Name,
-
-                    // Lưu ý: Kiểm tra xem DTO của sếp là Description hay ShortDescription
-                    // Nếu báo đỏ chữ ShortDescription thì đổi thành Description
                     ShortDescription: e.Description.Length > 100 ? e.Description.Substring(0, 100) + "..." : e.Description,
-
                     StartDateTime: e.StartDateTime,
                     CoverImageUrl: e.CoverImageUrl,
                     VenueName: e.Venue.Name,
-
-                    // 👇 Khả năng cao DTO của sếp có trường này nên mới bị lệch tham số
                     VenueAddress: e.Venue.Address,
-
-                    // 👇 Đây là tham số bị báo lỗi, giờ đã được gán đích danh
                     MinPrice: e.TicketTypes.Any() ? e.TicketTypes.Min(t => t.Price) : 0
                 ))
                 .ToList();
+
 
             return Ok(sortedEvents);
         }

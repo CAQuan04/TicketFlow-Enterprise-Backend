@@ -73,7 +73,7 @@ namespace TicketBooking.Infrastructure.AI
                 // Giả lập logic map User thật sang Mock User để test (Vì DB thật chưa có history).
                 // Trong thực tế: Sếp dùng đúng userId truyền vào.
                 // Ở đây tôi map mọi user về "1111" để Sếp thấy nó gợi ý theo sở thích của ông 1111 (thích A, B).
-                var mockUserId = "1111";
+                //var mockUserId = "1111";
 
                 // Map Event thật sang Mock Event (nếu có).
                 // Do chúng ta đang mock data, nên logic này chỉ mang tính minh họa luồng đi.
