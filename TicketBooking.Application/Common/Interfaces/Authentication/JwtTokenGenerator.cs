@@ -9,6 +9,7 @@ using System.Text; // Namespace for encoding strings to bytes.
 using System.Threading.Tasks;
 using TicketBooking.Application.Common.Interfaces.Authentication; // Import the interface.
 using TicketBooking.Domain.Entities; // Import the User domain entity.
+using System.Security.Cryptography; // Cần cái này cho RNG
 
 namespace TicketBooking.Infrastructure.Authentication
 {
@@ -60,6 +61,35 @@ namespace TicketBooking.Infrastructure.Authentication
 
             // Serialize the token object into a compact string format.
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+        public string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+        public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
+        {
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = false, // Có thể bỏ qua check audience khi refresh
+                ValidateIssuer = false,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret)),
+                ValidateLifetime = false // QUAN TRỌNG: Không check hết hạn ở đây (vì token đã hết hạn rồi mới cần refresh)
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            // Check token format
+            var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+
+            if (securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+            {
+                throw new SecurityTokenException("Invalid token");
+            }
+
+            return principal;
         }
     }
 }

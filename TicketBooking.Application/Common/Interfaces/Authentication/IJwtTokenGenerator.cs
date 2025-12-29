@@ -13,5 +13,8 @@ namespace TicketBooking.Application.Common.Interfaces.Authentication
     {
         // Generates a JWT string for a specific user containing their claims.
         string GenerateToken(User user);
+        string GenerateRefreshToken(); // <--- Thêm hàm này
+                                       // Hàm lấy Principal từ Expired Token (để biết ai đang đòi refresh)
+        System.Security.Claims.ClaimsPrincipal GetPrincipalFromExpiredToken(string token);
     }
 }

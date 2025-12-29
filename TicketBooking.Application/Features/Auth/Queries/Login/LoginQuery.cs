@@ -1,14 +1,13 @@
-﻿using System;
+﻿using MediatR; // Import MediatR.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using MediatR; // Import MediatR.
+using TicketBooking.Application.Features.Auth.DTOs;
 
 namespace TicketBooking.Application.Features.Auth.Queries.Login
 {
-    // This query represents a login request.
-    // It returns a 'string', which will be the JWT Token.
-    public record LoginQuery(string Email, string Password) : IRequest<string>;
+    // Đổi return type từ string sang AuthResponse
+    public record LoginQuery(string Email, string Password) : IRequest<AuthResponse>;
 }

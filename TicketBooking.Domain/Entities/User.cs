@@ -23,5 +23,9 @@ namespace TicketBooking.Domain.Entities
         public DateTime? VerificationTokenExpires { get; set; } // Stores expiration time.
         public bool EmailConfirmed { get; set; } = false; // Flag to check if verified.
 
+        // --- REFRESH TOKEN FIELDS ---
+        public string? RefreshToken { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
+
     }
 }

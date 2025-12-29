@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc; // Needed for Controller attributes.
+using TicketBooking.Application.Features.Auth.Commands.RefreshToken;
+using TicketBooking.Application.Features.Auth.Commands.SocialLogin; // Import Command.
 using TicketBooking.Application.Features.Auth.Commands.VerifyEmail;
 using TicketBooking.Application.Features.Auth.Queries.Login; // Needed for LoginQuery.
 using TicketBooking.Application.Features.Users.Commands.CreateUser; // Needed for CreateUserCommand (Register).
-using TicketBooking.Application.Features.Auth.Commands.SocialLogin; // Import Command.
 using TicketBooking.Domain.Enums; // Import Enum.
 
 namespace TicketBooking.API.Controllers
@@ -17,10 +18,10 @@ namespace TicketBooking.API.Controllers
         {
             // Send the LoginQuery to the Handler via MediatR.
             // The handler will return a JWT string if successful.
-            var token = await Mediator.Send(query);
+            var result = await Mediator.Send(query);
 
             // Return HTTP 200 OK with the token in the response body.
-            return Ok(token);
+            return Ok(result);
         }
 
         // Endpoint for User Registration (Moved logic here for better organization, optional).
@@ -61,6 +62,13 @@ namespace TicketBooking.API.Controllers
 
             // Return the JWT Token.
             return Ok(token);
+        }
+
+        [HttpPost("Refresh")]
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command)
+        {
+            var result = await Mediator.Send(command);
+            return Ok(result);
         }
     }
 }
