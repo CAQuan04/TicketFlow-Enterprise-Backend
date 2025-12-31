@@ -1,21 +1,25 @@
 ﻿using Elastic.Clients.Elasticsearch;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using TicketBooking.Application.Common.Interfaces.AI; // Dùng Interface vừa tạo
 using TicketBooking.Domain.Events;
 using TicketBooking.Infrastructure.Search.Models;
 
 namespace TicketBooking.Infrastructure.Search
 {
-    // Handler này lắng nghe sự kiện EventPublishedEvent.
-    // Nhiệm vụ: Copy dữ liệu từ SQL Entity sang Elastic Document.
     public class SyncEventToElasticHandler : INotificationHandler<EventPublishedEvent>
     {
         private readonly ElasticsearchClient _elasticClient;
+        private readonly IAiEmbeddingService _aiService; // Inject AI
         private readonly ILogger<SyncEventToElasticHandler> _logger;
 
-        public SyncEventToElasticHandler(ElasticsearchClient elasticClient, ILogger<SyncEventToElasticHandler> logger)
+        public SyncEventToElasticHandler(
+            ElasticsearchClient elasticClient,
+            IAiEmbeddingService aiService,
+            ILogger<SyncEventToElasticHandler> logger)
         {
             _elasticClient = elasticClient;
+            _aiService = aiService;
             _logger = logger;
         }
 
@@ -23,31 +27,30 @@ namespace TicketBooking.Infrastructure.Search
         {
             var evt = notification.Event;
 
-            // 1. Map Entity to Document.
+            // 1. Tạo đoạn văn bản tổng hợp để AI hiểu
+            // Ví dụ: "Đại nhạc hội BlackPink tại Sân Mỹ Đình vào ngày..."
+            var textToEmbed = $"{evt.Name}. {evt.Description}. Location: {evt.Venue?.Name}";
+
+            // 2. Gọi Google Gemini để lấy Vector (Embedding)
+            var vector = await _aiService.GenerateEmbeddingAsync(textToEmbed);
+
+            // 3. Map sang Document
             var doc = new EventDocument
             {
                 Id = evt.Id,
                 Name = evt.Name,
                 Description = evt.Description,
-                VenueName = evt.Venue?.Name ?? "Unknown", // Handle null navigation if not eager loaded (careful here).
+                VenueName = evt.Venue?.Name ?? "",
                 StartDate = evt.StartDateTime,
                 ImageUrl = evt.CoverImageUrl,
-                // Giả sử logic tính giá min đơn giản, thực tế cần query TicketTypes.
-                MinPrice = 0
+                MinPrice = 0, // Logic giá tính sau
+                Embedding = vector // Lưu vector vào Elastic
             };
 
-            // 2. Index into Elasticsearch.
-            // Nếu ID đã tồn tại, nó sẽ Update (Upsert). Nếu chưa, nó Create.
-            var response = await _elasticClient.IndexAsync(doc, idx => idx.Index("events"), cancellationToken);
+            // 4. Index vào Elastic
+            await _elasticClient.IndexAsync(doc, idx => idx.Index("events"), cancellationToken);
 
-            if (response.IsValidResponse)
-            {
-                _logger.LogInformation($"Successfully synced Event {evt.Id} to Elasticsearch.");
-            }
-            else
-            {
-                _logger.LogError($"Failed to sync Event {evt.Id}: {response.DebugInformation}");
-            }
+            _logger.LogInformation($"Synced Event '{evt.Name}' with AI Vector to Elasticsearch.");
         }
     }
 }

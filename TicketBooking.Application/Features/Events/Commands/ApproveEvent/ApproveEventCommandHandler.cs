@@ -62,6 +62,7 @@ namespace TicketBooking.Application.Features.Events.Commands.ApproveEvent
 
             // Bắn sự kiện để các bên khác (như Elastic Sync) biết mà làm việc.
             await _publisher.Publish(new EventPublishedEvent(eventEntity), cancellationToken);
+            await _publisher.Publish(new EventPublishedEvent(eventEntity));
         }
     }
 }

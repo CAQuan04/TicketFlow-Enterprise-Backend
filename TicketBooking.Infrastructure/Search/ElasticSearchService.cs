@@ -1,6 +1,7 @@
 ﻿using Elastic.Clients.Elasticsearch;
-using Elastic.Clients.Elasticsearch.QueryDsl;
+// using Elastic.Clients.Elasticsearch.QueryDsl; // Không cần dòng này nữa
 using TicketBooking.Application.Common.Interfaces;
+using TicketBooking.Application.Common.Interfaces.AI;
 using TicketBooking.Application.Features.Events.Queries.GetEventsList;
 using TicketBooking.Infrastructure.Search.Models;
 
@@ -9,49 +10,52 @@ namespace TicketBooking.Infrastructure.Search
     public class ElasticSearchService : ISearchService
     {
         private readonly ElasticsearchClient _client;
+        private readonly IAiEmbeddingService _aiService;
 
-        public ElasticSearchService(ElasticsearchClient client)
+        public ElasticSearchService(ElasticsearchClient client, IAiEmbeddingService aiService)
         {
             _client = client;
+            _aiService = aiService;
         }
 
         public async Task<List<EventListDto>> SearchAsync(string keyword, CancellationToken cancellationToken)
         {
-            // FUZZY SEARCH QUERY
+            // 1. Chuyển từ khóa thành Vector
+            var queryVector = await _aiService.GenerateEmbeddingAsync(keyword);
+
+            // 2. Tìm kiếm KNN
             var response = await _client.SearchAsync<EventDocument>(s => s
-                .Indices("events") // ✅ FIX 1: Đổi .Index thành .Indices
-                .Query(q => q
-                    .MultiMatch(m => m
-                        // ✅ FIX 2: Dùng mảng chuỗi để định nghĩa Field và Boost (^3)
-                        // Cách này gọn hơn và tránh lỗi Lambda Expression của thư viện mới
-                        .Fields(new[] { "name^3", "description", "venueName" })
-                        .Query(keyword)
-                        .Fuzziness(new Fuzziness("AUTO"))
-                    )
-                ), cancellationToken);
+                .Index("events")
+                .Size(10) // Giới hạn kết quả trả về
+                          // ✅ FIX LỖI CS1503:
+                          // 1. Dùng 'KnnSearch' thay vì 'KnnQuery'.
+                          // 2. Bọc trong mảng 'new [] { ... }' vì hàm yêu cầu ICollection.
+                .Knn(new[]
+                {
+                    new KnnSearch
+                    {
+                        Field = "embedding",
+                        QueryVector = queryVector,                        
+                        NumCandidates = 100  // Số lượng ứng viên
+                    }
+                }), cancellationToken);
 
             if (!response.IsValidResponse)
             {
                 return new List<EventListDto>();
             }
 
-            // Map lại sang DTO của Application Layer
+            // 3. Map kết quả
             return response.Documents.Select(d => new EventListDto(
-               Id: d.Id,
-               Name: d.Name,
-
-               // 👇 SỬA DÒNG NÀY: Đổi Description thành ShortDescription
-               ShortDescription: d.Description,
-
-               StartDateTime: d.StartDate,
-               VenueName: d.VenueName,
-               MinPrice: d.MinPrice,
-               CoverImageUrl: d.ImageUrl,
-
-               // 👇 Nếu DTO của sếp yêu cầu VenueAddress, hãy giữ dòng này. 
-               // Nếu báo lỗi "VenueAddress not found" thì xóa dòng này đi.
-               VenueAddress: ""
-           )).ToList();
+                Id: d.Id,
+                Name: d.Name,
+                ShortDescription: d.Description.Length > 100 ? d.Description.Substring(0, 100) + "..." : d.Description,
+                StartDateTime: d.StartDate,
+                VenueName: d.VenueName,
+                VenueAddress: "N/A",
+                MinPrice: d.MinPrice,
+                CoverImageUrl: d.ImageUrl
+            )).ToList();
         }
     }
 }

@@ -1,104 +1,104 @@
-﻿using Elastic.Clients.Elasticsearch; // Import namespace.
-using Microsoft.EntityFrameworkCore; // Thư viện để làm việc với Entity Framework Core.
-using Microsoft.Extensions.Configuration; // Thư viện để đọc file appsettings.json.
-using Microsoft.Extensions.DependencyInjection; // Thư viện để đăng ký các Service (DI).
-using TicketBooking.Application.Common.Interfaces; // Namespace chứa Interface của DbContext.
+﻿using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.Mapping; // ✅ THÊM DÒNG NÀY ĐỂ DÙNG ENUM
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using TicketBooking.Application.Common.Interfaces;
 using TicketBooking.Application.Common.Interfaces.AI;
-using TicketBooking.Application.Common.Interfaces.Authentication; // Namespace chứa Interface bảo mật.
+using TicketBooking.Application.Common.Interfaces.Authentication;
 using TicketBooking.Application.Common.Interfaces.Data;
 using TicketBooking.Application.Common.Interfaces.Payments;
 using TicketBooking.Application.Common.Interfaces.RealTime;
 using TicketBooking.Infrastructure.AI;
-using TicketBooking.Infrastructure.Authentication; // Namespace chứa class thực thi bảo mật.
+using TicketBooking.Infrastructure.Authentication;
 using TicketBooking.Infrastructure.Authentication.Social;
 using TicketBooking.Infrastructure.Data;
 using TicketBooking.Infrastructure.FileStorage;
 using TicketBooking.Infrastructure.Payments;
 using TicketBooking.Infrastructure.Search;
-using TicketBooking.Infrastructure.Services; // Namespace chứa ApplicationDbContext.
+using TicketBooking.Infrastructure.Search.Models;
+using TicketBooking.Infrastructure.Services;
+
 namespace TicketBooking.Infrastructure
 {
-    // Class tĩnh dùng để gom nhóm các cấu hình Dependency Injection cho Infrastructure layer.
     public static class DependencyInjection
     {
-        // Hàm mở rộng (Extension method) giúp Program.cs gọi ngắn gọn: .AddInfrastructure(...)
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            // 1. Config Elasticsearch URL
-            var esUrl = configuration["ElasticSearch:Uri"] ?? "http://localhost:9200";
-
-            // 2. Register Client (Singleton is best practice for ES Client).
-            services.AddSingleton<ElasticsearchClient>(_ =>
-            {
-                var settings = new ElasticsearchClientSettings(new Uri(esUrl))
-                    .DefaultIndex("events"); // Mặc định thao tác với index tên là "events".
-
-                return new ElasticsearchClient(settings);
-            });
-            // --- 1. CẤU HÌNH DATABASE ---
-
-            // Đăng ký ApplicationDbContext vào DI Container.
+            // --- 1. DB & CORE ---
             services.AddDbContext<ApplicationDbContext>(options =>
-                // Sử dụng SQL Server với Connection String lấy từ cấu hình.
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
-            // Đăng ký Interface IApplicationDbContext ánh xạ vào class ApplicationDbContext thực tế.
-            // Điều này giúp lớp Application dùng được DB mà không phụ thuộc trực tiếp vào EF Core.
             services.AddScoped<IApplicationDbContext>(provider =>
                 provider.GetRequiredService<ApplicationDbContext>());
-            services.AddScoped<ISearchService, ElasticSearchService>();
-            // --- 2. CẤU HÌNH BẢO MẬT (AUTH) ---
 
-            // Đọc phần "JwtSettings" từ appsettings.json và map vào class JwtSettings.
+            // --- 2. AUTH ---
             services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
-
-            // Đăng ký dịch vụ băm mật khẩu (BCrypt) dạng Singleton (vì nó không lưu trạng thái).
             services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
-
-            // Đăng ký dịch vụ tạo Token (JWT) dạng Singleton.
             services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+            services.AddHttpContextAccessor();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
+            services.Configure<GoogleSettings>(configuration.GetSection(GoogleSettings.SectionName));
+            services.AddTransient<ISocialAuthService, GoogleAuthService>();
 
-            // Thêm dòng này vào method AddInfrastructure:
-            services.AddTransient<DataSeeder>(); // Register DataSeeder as Transient.
-            // Thêm vào AddInfrastructure:
+            // --- 3. INFRA SERVICES ---
+            services.AddTransient<DataSeeder>();
             services.AddScoped<IStorageService, LocalStorageService>();
-            // Add inside AddInfrastructure method:
+            services.AddScoped<ISearchService, ElasticSearchService>();
+            services.AddTransient<IQrCodeService, QrCodeService>();
             services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
             services.AddTransient<IEmailService, SmtpEmailService>();
             services.AddScoped<IWalletService, WalletService>();
-            // Configure Google Settings.
-            services.Configure<GoogleSettings>(configuration.GetSection(GoogleSettings.SectionName));
-
-            // Register GoogleAuthService as the implementation of ISocialAuthService.
-            // If adding more providers later, we can use Keyed Services (available in .NET 8).
-            services.AddTransient<ISocialAuthService, GoogleAuthService>();
-
-            // 1. Đăng ký HttpContextAccessor (Bắt buộc để đọc Token).
-            services.AddHttpContextAccessor();
-
-            // 2. Đăng ký CurrentUserService (Scoped theo Request).
-            services.AddScoped<ICurrentUserService, CurrentUserService>();
-            // Trả về services để có thể viết code nối tiếp (Fluent API).
-            services.AddSingleton<IRecommendationService, RecommendationService>();
             services.Configure<VnPaySettings>(configuration.GetSection(VnPaySettings.SectionName));
             services.AddTransient<IPaymentGateway, VnPayPaymentGateway>();
-            // Thêm vào trong hàm AddInfrastructure
             services.AddTransient<IVnPayValidationService, VnPayValidationService>();
-
-            // Thêm vào trong method AddInfrastructure:
-            // Đăng ký dạng Transient vì IDbConnection là object nhẹ, nên tạo mới mỗi khi cần dùng và dispose ngay.
             services.AddTransient<ISqlConnectionFactory, SqlConnectionFactory>();
-
-            // Đăng ký Service gửi thông báo
             services.AddTransient<INotificationService, SignalRNotificationService>();
 
-            services.AddTransient<IQrCodeService, QrCodeService>();
-            // --- CACHING LAYER (REDIS) ---
             services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = configuration.GetConnectionString("Redis");
-                options.InstanceName = "TicketFlow_"; // Prefix cho mọi key để tránh trùng lặp với app khác
+                options.InstanceName = "TicketFlow_";
             });
+
+            services.AddSingleton<IRecommendationService, RecommendationService>();
+
+            // --- 4. ELASTICSEARCH & AI ---
+            services.AddHttpClient<IAiEmbeddingService, GeminiEmbeddingService>();
+
+            var esUrl = configuration["ElasticSearch:Uri"] ?? "http://localhost:9200";
+
+            services.AddSingleton<ElasticsearchClient>(_ =>
+            {
+                var settings = new ElasticsearchClientSettings(new Uri(esUrl))
+                    .DefaultIndex("events");
+
+                var client = new ElasticsearchClient(settings);
+
+                var existsResponse = client.Indices.Exists("events");
+
+                if (!existsResponse.Exists)
+                {
+                    // Cú pháp chuẩn cho Elastic.Clients.Elasticsearch v8.x
+                    client.Indices.Create("events", c => c
+                        .Mappings(m => m
+                            .Properties<EventDocument>(p => p
+                                .Keyword(k => k.Id)          // Map Id sang Keyword
+                                .Text(t => t.Name)           // Map Name sang Text
+                                .Text(t => t.Description)    // Map Description sang Text
+                                .Text(t => t.VenueName)      // Map VenueName sang Text
+                                .DenseVector(n => n.Embedding, dv => dv
+                                    .Dims(768)               // Kích thước Vector (Gemini)
+                                    .Index(true)             // Cho phép tìm kiếm KNN
+                                    .Similarity(Elastic.Clients.Elasticsearch.Mapping.DenseVectorSimilarity.Cosine)    // Dùng chuỗi "cosine" thay vì Enum để tránh lỗi
+                                )
+                            )
+                        )
+                    );
+                }
+
+                return client;
+            });
+
             return services;
         }
     }

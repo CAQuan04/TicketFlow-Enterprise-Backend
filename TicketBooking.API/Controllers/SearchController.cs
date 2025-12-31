@@ -24,18 +24,11 @@ namespace TicketBooking.API.Controllers
             _context = context;
         }
 
-        // Endpoint: GET api/search/smart?keyword=blackpink
         [HttpGet("smart")]
-        [AllowAnonymous] // Public cho mọi người dùng
-        public async Task<IActionResult> SmartSearch([FromQuery] string keyword)
+        public async Task<IActionResult> SmartSearch(string keyword)
         {
-            if (string.IsNullOrWhiteSpace(keyword))
-            {
-                return BadRequest("Keyword is required.");
-            }
-
-            var results = await _searchService.SearchAsync(keyword, CancellationToken.None);
-            return Ok(results);
+            var result = await _searchService.SearchAsync(keyword, CancellationToken.None);
+            return Ok(result);
         }
 
         // Endpoint: POST api/search/sync-all

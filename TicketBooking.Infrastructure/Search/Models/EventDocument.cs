@@ -10,5 +10,7 @@
         public DateTime StartDate { get; set; }
         public decimal MinPrice { get; set; }
         public string? ImageUrl { get; set; }
+
+        public float[]? Embedding { get; set; }
     }
 }
