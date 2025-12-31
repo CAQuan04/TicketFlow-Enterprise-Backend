@@ -1,5 +1,6 @@
 ﻿using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.Mapping; // ✅ THÊM DÒNG NÀY ĐỂ DÙNG ENUM
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using TicketBooking.Application.Common.Interfaces.Authentication;
 using TicketBooking.Application.Common.Interfaces.Data;
 using TicketBooking.Application.Common.Interfaces.Payments;
 using TicketBooking.Application.Common.Interfaces.RealTime;
+using TicketBooking.Domain.Events;
 using TicketBooking.Infrastructure.AI;
 using TicketBooking.Infrastructure.Authentication;
 using TicketBooking.Infrastructure.Authentication.Social;
@@ -53,7 +55,7 @@ namespace TicketBooking.Infrastructure
             services.AddTransient<IVnPayValidationService, VnPayValidationService>();
             services.AddTransient<ISqlConnectionFactory, SqlConnectionFactory>();
             services.AddTransient<INotificationService, SignalRNotificationService>();
-
+            services.AddTransient<INotificationHandler<EventPublishedEvent>, SyncEventToElasticHandler>();
             services.AddStackExchangeRedisCache(options =>
             {
                 options.Configuration = configuration.GetConnectionString("Redis");
