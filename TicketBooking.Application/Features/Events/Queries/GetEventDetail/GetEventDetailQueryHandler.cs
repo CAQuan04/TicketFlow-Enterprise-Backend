@@ -61,10 +61,13 @@ namespace TicketBooking.Application.Features.Events.Queries.GetEventDetail
                 eventEntity.CoverImageUrl,
                 eventEntity.Venue.Name,     // Map Venue Name.
                 eventEntity.Venue.Address,  // Map Venue Address.
+                eventEntity.Venue.City,
                 eventEntity.TicketTypes.Select(t => new TicketTypeDetailDto(
                     t.Id,
                     t.Name,
                     t.Price,
+                    t.OriginalPrice,
+                    t.Description,                   
                     t.AvailableQuantity
                 )).ToList()
             );

@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using TicketBooking.Application.Common.Exceptions; // Custom Exceptions.
 using TicketBooking.Application.Common.Interfaces; // DbContext Interface.
 using TicketBooking.Domain.Entities; // Event Entity.
@@ -24,7 +25,9 @@ namespace TicketBooking.Application.Features.Events.Commands.ApproveEvent
         public async Task Handle(ApproveEventCommand request, CancellationToken cancellationToken)
         {
             // 1. FETCH EVENT FROM DB.
-            var eventEntity = await _context.Events.FindAsync(new object[] { request.EventId }, cancellationToken);
+            var eventEntity = await _context.Events
+                .Include(e => e.Venue) // Kèm theo thông tin Venue
+                .FirstOrDefaultAsync(e => e.Id == request.EventId, cancellationToken);
 
             // 2. CHECK EXISTENCE.
             if (eventEntity == null)

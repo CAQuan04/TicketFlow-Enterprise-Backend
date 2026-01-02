@@ -23,22 +23,31 @@ namespace TicketBooking.Infrastructure.Search
             // 1. Chuyển từ khóa thành Vector
             var queryVector = await _aiService.GenerateEmbeddingAsync(keyword);
 
-            // 2. Tìm kiếm KNN
+            // 2. Tìm kiếm HYBRID (Kết hợp Vector + Từ khóa)
             var response = await _client.SearchAsync<EventDocument>(s => s
                 .Index("events")
-                .Size(10) // Giới hạn kết quả trả về
-                          // ✅ FIX LỖI CS1503:
-                          // 1. Dùng 'KnnSearch' thay vì 'KnnQuery'.
-                          // 2. Bọc trong mảng 'new [] { ... }' vì hàm yêu cầu ICollection.
+                .Size(10)
+
+                // PHẦN 1: TÌM THEO VECTOR (SEMANTIC SEARCH) - Hiểu ý
                 .Knn(new[]
                 {
                     new KnnSearch
                     {
                         Field = "embedding",
-                        QueryVector = queryVector,                        
-                        NumCandidates = 100  // Số lượng ứng viên
+                        QueryVector = queryVector,
+                        NumCandidates = 100,
+                        Boost = 0.5f // Trọng số thấp hơn (0.5): Để AI chỉ đóng vai trò hỗ trợ, gợi ý
                     }
-                }), cancellationToken);
+                })
+
+                // PHẦN 2: TÌM THEO TỪ KHÓA (KEYWORD SEARCH) - Chính xác
+                .Query(q => q
+                    .MultiMatch(m => m
+                        .Fields(new[] { "name^3", "description", "venueName" })
+                        .Query(keyword)
+                        .Boost(1.5f) // Trọng số cao hơn (1.5): Ưu tiên kết quả khớp chữ viết
+                    )
+                ), cancellationToken);
 
             if (!response.IsValidResponse)
             {
