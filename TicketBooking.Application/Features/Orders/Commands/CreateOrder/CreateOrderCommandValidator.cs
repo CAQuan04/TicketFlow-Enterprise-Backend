@@ -7,13 +7,18 @@ namespace TicketBooking.Application.Features.Orders.Commands.CreateOrder
     {
         public CreateOrderCommandValidator()
         {
-            // TicketTypeId bắt buộc phải có.
-            RuleFor(x => x.TicketTypeId).NotEmpty().WithMessage("Ticket Type is required.");
+            // 1. List không được rỗng
+            RuleFor(x => x.Items)
+                .NotEmpty().WithMessage("Giỏ hàng không được để trống.");
 
-            // Số lượng phải từ 1 trở lên.
-            RuleFor(x => x.Quantity)
-                .GreaterThan(0).WithMessage("Quantity must be at least 1.")
-                .LessThanOrEqualTo(10).WithMessage("You can only buy max 10 tickets at once."); // Rule nghiệp vụ chặn mua sỉ.
+            // 2. Validate từng item bên trong list
+            RuleForEach(x => x.Items).ChildRules(items =>
+            {
+                items.RuleFor(x => x.TicketTypeId).NotEmpty();
+                items.RuleFor(x => x.Quantity)
+                    .GreaterThan(0).WithMessage("Số lượng phải lớn hơn 0.");
+                    
+            });
         }
     }
 }

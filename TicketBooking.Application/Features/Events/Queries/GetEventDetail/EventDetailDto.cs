@@ -11,6 +11,10 @@
         string VenueName,       // Flatten data: Lấy tên Venue ra ngoài.
         string VenueAddress,    // Flatten data: Lấy địa chỉ Venue ra ngoài.
         string VenueCity,
+        int MaxTicketsPerUser,
+        DateTime TicketSaleStartTime,
+        DateTime? TicketSaleEndTime,
+
         List<TicketTypeDetailDto> TicketTypes
     );
 }

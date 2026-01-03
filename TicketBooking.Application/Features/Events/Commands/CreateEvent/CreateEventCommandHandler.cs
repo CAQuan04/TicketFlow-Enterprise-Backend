@@ -60,6 +60,10 @@ namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
                 EndDateTime = request.EndDateTime,
                 CoverImageUrl = request.CoverImageUrl,
                 CreatedBy = _currentUserService.UserId,
+                MaxTicketsPerUser = request.MaxTicketsPerUser,
+                TicketSaleStartTime = request.TicketSaleStartTime,
+                // Mặc định đóng bán khi sự kiện bắt đầu (Sếp có thể sửa logic này nếu muốn bán vé giờ chót)
+                TicketSaleEndTime = request.StartDateTime,
                 Status = EventStatus.Draft, // Mặc định là bản nháp.
                 CreatedDate = DateTime.UtcNow
             };

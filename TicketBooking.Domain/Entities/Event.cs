@@ -5,6 +5,18 @@ namespace TicketBooking.Domain.Entities
 {
     public class Event : BaseEntity
     {
+        // 1. Giới hạn số vé tối đa một người được mua cho sự kiện này.
+        // Mặc định là 5 vé (để chống phe vé).
+        public int MaxTicketsPerUser { get; set; } = 5;
+
+        // 2. Thời điểm mở bán vé (Countdown).
+        // Trước giờ này, nút mua sẽ bị khóa.
+        public DateTime TicketSaleStartTime { get; set; }
+
+        // 3. Thời điểm đóng bán vé (Hết hạn).
+        // Sau giờ này, không mua được nữa (dù còn vé).
+        public DateTime? TicketSaleEndTime { get; set; }
+
         public Guid VenueId { get; set; }
         public Venue Venue { get; set; } = null!;
 

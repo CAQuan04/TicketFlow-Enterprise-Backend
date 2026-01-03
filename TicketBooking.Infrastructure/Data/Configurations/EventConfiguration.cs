@@ -35,6 +35,12 @@ namespace TicketBooking.Infrastructure.Data.Configurations
             // (Optional) Index kết hợp Venue + Ngày (nếu hay lọc theo địa điểm)
             builder.HasIndex(e => new { e.VenueId, e.StartDateTime })
                    .HasDatabaseName("IX_Events_Venue_Date");
+            // Thêm vào hàm Configure:
+            builder.Property(e => e.MaxTicketsPerUser)
+                   .HasDefaultValue(5); // Thiết lập giá trị mặc định cấp Database.
+
+            builder.Property(e => e.TicketSaleStartTime)
+                   .IsRequired(); // Bắt buộc phải có giờ mở bán.
         }
     }
 }

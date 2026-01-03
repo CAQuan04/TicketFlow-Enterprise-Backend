@@ -10,6 +10,8 @@ namespace TicketBooking.Application.Features.Events.Commands.CreateEvent
         DateTime StartDateTime,
         DateTime EndDateTime,
         string? CoverImageUrl,
+        int MaxTicketsPerUser,
+        DateTime TicketSaleStartTime,
         List<TicketTypeDto> TicketTypes // Danh sách loại vé đi kèm.
     ) : IRequest<Guid>; // Trả về ID của sự kiện vừa tạo.
 }

@@ -62,6 +62,9 @@ namespace TicketBooking.Application.Features.Events.Queries.GetEventDetail
                 eventEntity.Venue.Name,     // Map Venue Name.
                 eventEntity.Venue.Address,  // Map Venue Address.
                 eventEntity.Venue.City,
+                eventEntity.MaxTicketsPerUser,
+                eventEntity.TicketSaleStartTime,
+                eventEntity.TicketSaleEndTime,
                 eventEntity.TicketTypes.Select(t => new TicketTypeDetailDto(
                     t.Id,
                     t.Name,
